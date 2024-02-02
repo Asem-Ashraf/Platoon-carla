@@ -3,75 +3,16 @@
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
-
-
 import carla
-import paho.mqtt.client as mqtt
 import weakref
 import math
 import numpy as np
 import argparse
 import time
-import json
-
-# ==============================================================================
-# -- PahoMQTT ------------------------------------------------------------------
-# ==============================================================================
-
-# @brief MQTT client class
-# @details This class is used to connect to an MQTT broker and publish/subscribe to topics
-class MqttClient(object):
-    # @brief Initialize the MQTT client
-    # @param broker_address The IP address of the MQTT broker
-    # @param broker_port The port of the MQTT broker
-    # @return None
-    def __init__(self, broker_address, broker_port):
-        self.client = mqtt.Client()
-        self.client.connect(broker_address, broker_port, 60)
-        self.client.loop_start()
-
-    # @brief Publish a message to a topic
-    # @param topic The topic to publish to
-    # @param message The message to publish
-    # @return None
-    def publish(self, topic, message):
-        self.client.publish(topic, message)
-
-    # @brief Subscribe to a topic
-    # @param topic The topic to subscribe to
-    # @return None
-    def subscribe(self, topic):
-        self.client.subscribe(topic)
-
-    # @brief Unsubscribe from a topic
-    # @param topic The topic to unsubscribe from
-    # @return None
-    def unsubscribe(self, topic):
-        self.client.unsubscribe(topic)
-
-    # @brief Set the callback for when a message is received
-    # @param callback The callback function
-    # @return None
-    def set_on_message_callback(self, callback):
-        self.client.on_message = callback
-
-    # @brief Set the callback for when a message is published
-    # @param callback The callback function
-    # @return None
-    def set_on_publish_callback(self, callback):
-        self.client.on_publish = callback
-
-    # @brief Disconnect from the broker
-    # @return None
-    def disconnect(self):
-        self.client.disconnect()
-
 
 # ==============================================================================
 # -- GnssSensor ----------------------------------------------------------------
 # ==============================================================================
-
-
 class GnssSensor(object):
     def __init__(self, parent_actor):
         self.sensor_actor_instance = None
@@ -120,8 +61,6 @@ class GnssSensor(object):
 # ==============================================================================
 # -- IMUSensor -----------------------------------------------------------------
 # ==============================================================================
-
-
 class IMUSensor(object):
     def __init__(self, parent_actor):
         self.sensor_actor_instance = None
@@ -187,8 +126,6 @@ class IMUSensor(object):
 # ==============================================================================
 # -- RadarSensor ---------------------------------------------------------------
 # ==============================================================================
-
-
 class RadarSensor(object):
     def __init__(self, parent_actor):
         self.sensor_actor_instance = None
@@ -355,29 +292,6 @@ class World:
 
 # ==============================================================================
 
-# MQTT broker details
-broker_address = "localhost"
-broker_port = 1883
-
-# Define topics
-publish_topic = "carla/sensors"
-subscribe_topic = "carla/actions"
-
-control = [0.5,0]
-
-# Callback when a message is published
-def on_publish(client, userdata, mid):
-    print(f"Message {mid} published to topic {publish_topic}")
-
-# Callback when a message is received from the subscribed topic
-def on_message(client, userdata, msg):
-    print(f"Received message: {msg.payload.decode()} from topic {msg.topic}")
-    # try :
-    control[1] = float(json.loads(msg.payload.decode())['af'])
-    # except:
-    #     pass
-
-
 def parseArguments():
     argparser = argparse.ArgumentParser(
         description='CARLA Platoon')
@@ -435,12 +349,6 @@ def parseArguments():
 def main():
     args = parseArguments()
 
-    # MQTT initialization
-    mqtt_client = MqttClient(broker_address, broker_port)
-    mqtt_client.set_on_publish_callback(on_publish)
-    mqtt_client.set_on_message_callback(on_message)
-    mqtt_client.subscribe(subscribe_topic)
-
     # Carla initialization
     client = carla.Client(args.host, args.port)
     client.set_timeout(args.timeout)
@@ -449,7 +357,6 @@ def main():
     try:
         arg_bp = sim_world.get_actor_blueprints(args.filter)
         sim_world.spawn_platoon(arg_bp)
-        # time.sleep(10)
 
         # ======================================================================
         # -- This is something that is still being experimented with. The Idea
@@ -458,27 +365,23 @@ def main():
         #print(sim_world.world.get_snapshot().find(sim_world.leader_vehicle.sensor_instances[0].sensor_actor_instance.id).get_transform())
         # ======================================================================
 
+
+
+        # ======================================================================
+        # -- This is the desired end code, this is not fully implemented yet.
+        # ======================================================================
         # A command line option to enable synchronous mode.
         if args.sync:
             sim_world.settings.synchronous_mode = True
             # This delta seconds could also be given in the command-line.
             sim_world.settings.fixed_delta_seconds = 0.05
             sim_world.world.apply_settings(sim_world.settings)
-
-        # ======================================================================
-        # -- This is the desired end code, this is not fully implemented yet.
-        # ======================================================================
-        if args.sync:
             for i in range(100):
                 # In this mode, a delay is not needed as the timing between
                 # each tick can be set. This is the path to be taken for the
                 # most accurate sensor reading.
                 sim_world.world.tick()
 
-                # mqtt_client.publish(publish_topic, json.dumps(sim_world.get_data())) 
-                # How to make an explicit function call to get_control() so 
-                # that I can apply it here?
-                # sim_world.apply_control(get_control())
         else:
             while True:
                     data = sim_world.get_data()
@@ -498,7 +401,15 @@ def main():
                                 "vl" : str(vl),
                                 "vf" : str(vf)
                             }
-                    mqtt_client.publish(publish_topic, json.dumps(somedata)) 
+                    control = [0.5,0]
+                    # function to calculate the control
+                    def get_control(xl,yl,xf,yf,vl,vf):
+                        kp = 0.025
+                        c = -2.0 # Desired spacing
+                        return max(0,min(1,kp * (math.sqrt(((xf-xl)**2)+((yf-yl)**2)) + c)))
+
+                    control[1] = get_control(xl,yl,xf,yf,vl,vf)
+
                     print("leader  :",xl,yl)
                     print("follower:",xf,yf)
                     print("speeds  :",vf,vl)
@@ -509,11 +420,8 @@ def main():
                 # A delay so that the environment changes a little bit before
                 # sending the next sensor readings. Otherwise, this script
                 # flood the raspberry pi with sensors whenever it can.
-                    time.sleep(0.05)
-        # ======================================================================
+                    # time.sleep(0.05)
     finally:
-        # Disconnect when the script is interrupted
-        mqtt_client.disconnect()
         sim_world.destroy_platoon()
         print('==================')
         print('Platoon Destroyed.')
@@ -521,13 +429,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-                    # function to calculate the control
-                    # def get_control(xl,yl,xf,yf,vl,vf):
-                    #     # This is a dummy control function. This is where the
-                    #     # control algorithm should be implemented.
-                    #     kp = 0.025
-                    #     kd = 0.01
-                    #     c = -15
-                    #     return math.tanh(kp * (math.sqrt(((xf-xl)**2)+((yf-yl)**2))) + c - kd*(vl-vf))+1
-                    # control[1] = get_control(xl,yl,xf,yf,vl,vf)
-                    #
