@@ -289,7 +289,7 @@ class World:
         self.follower_vehicles = []
 
     def __get_spawn_points(self, number_of_points,vehicle_spacing,bp):
-        if self.map.name != 'Carla/Maps/Town06_Opt':
+        if (self.map.name != 'Carla/Maps/Town06_Opt')|(self.args.reload_map):
             self.client.load_world('Town06_Opt')
             self.map = self.world.get_map()
         # cherry pick points on the map on the longest straight road
@@ -407,6 +407,11 @@ def parseArguments():
         default=10.0,
         type=int,
         help='Time to wait for the server before quitting (default: 10.0 seconds)')
+    argparser.add_argument(
+        '--reload-map',
+        default=0,
+        type=bool,
+        help='Reload the map (default: False)')
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',
