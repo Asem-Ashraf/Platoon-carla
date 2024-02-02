@@ -3,8 +3,6 @@
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
-
-
 import carla
 import paho.mqtt.client as mqtt
 import weakref
@@ -17,9 +15,6 @@ import json
 # ==============================================================================
 # -- PahoMQTT ------------------------------------------------------------------
 # ==============================================================================
-
-# @brief MQTT client class
-# @details This class is used to connect to an MQTT broker and publish/subscribe to topics
 class MqttClient(object):
     # @brief Initialize the MQTT client
     # @param broker_address The IP address of the MQTT broker
@@ -70,68 +65,45 @@ class MqttClient(object):
 # ==============================================================================
 # -- GnssSensor ----------------------------------------------------------------
 # ==============================================================================
-
-
 class GnssSensor(object):
     def __init__(self, parent_actor):
         self.sensor_actor_instance = None
         self._parent_actor_instance = parent_actor
-
         # Readings (Efficient)
-        # self.lat = 0.0
-        # self.lon = 0.0
-
-        self.data = {"lat": 0.0,
-                     "lon": 0.0}
+        self.edata = []
+        self.data = {"lat": "", "lon": ""}
 
         world = self._parent_actor_instance.get_world()
         bp = world.get_blueprint_library().find('sensor.other.gnss')
-        self.sensor_actor_instance = world.spawn_actor(bp,
-                                                       carla.Transform(carla.Location(x=1.0, z=2.8)),
-                                                       attach_to=parent_actor)
-        # We need to pass the lambda a weak reference to self to avoid circular
-        # reference.
+        self.sensor_actor_instance = world.spawn_actor(bp, carla.Transform(carla.Location(x=1.0, z=2.8)), attach_to=parent_actor)
+        # We need to pass the lambda a weak reference to self to avoid circular reference.
         weak_self = weakref.ref(self)
         self.sensor_actor_instance.listen(lambda event: GnssSensor._on_gnss_event(weak_self, event))
-
+    def get_edata(self):
+        return self.edata;
     def get_data(self):
-        # efficient
-        # return [self.lat, self.lon]
-        # for the json file
         return {"GNSS":self.data}
-
-
     def destroy(self):
         self.sensor_actor_instance.destroy()
-
     @staticmethod
     def _on_gnss_event(weak_self, event):
         self = weak_self()
         if not self:
             return
+        self.edata = [event.latitude, event.longitude]
         self.data.update({"lat": str(event.latitude),
                           "lon": str(event.longitude)})
-
-        # # Readings (Efficient)
-        # self.lat = event.latitude
-        # self.lon = event.longitude
-
 
 # ==============================================================================
 # -- IMUSensor -----------------------------------------------------------------
 # ==============================================================================
-
-
 class IMUSensor(object):
     def __init__(self, parent_actor):
         self.sensor_actor_instance = None
         self._parent_actor_instance = parent_actor
 
-        # # Readings (Efficient)
-        # self.accelerometer = (0.0, 0.0, 0.0)
-        # self.gyroscope = (0.0, 0.0, 0.0)
-        # self.compass = 0.0
-
+        # Readings (Efficient)
+        self.edata = []
         self.data = {}
         world = self._parent_actor_instance.get_world()
         bp = world.get_blueprint_library().find('sensor.other.imu')
@@ -140,18 +112,29 @@ class IMUSensor(object):
         # reference.
         weak_self = weakref.ref(self)
         self.sensor_actor_instance.listen( lambda sensor_data: IMUSensor._IMU_callback(weak_self, sensor_data))
-
+    def get_edata(self):
+        return self.edata
     def get_data(self):
         return {"IMU":self.data}
-
     def destroy(self):
         self.sensor_actor_instance.destroy()
-
     @staticmethod
     def _IMU_callback(weak_self, sensor_data):
         self = weak_self()
         if not self:
             return
+        # Readings (Efficient)
+        self.edata=[
+                [ sensor_data.accelerometer.x,
+                 sensor_data.accelerometer.y,
+                 sensor_data.accelerometer.z
+                ],
+                [ sensor_data.gyroscope.x,
+                 sensor_data.gyroscope.y,
+                 sensor_data.gyroscope.z
+                ],
+                math.degrees(sensor_data.compass)
+                ]
         self.data.update({
             "accelerometer": {
                 "x":str(sensor_data.accelerometer.x),
@@ -165,25 +148,6 @@ class IMUSensor(object):
                 },
             "compass": str(sensor_data.compass)})
 
-        # # Readings (Efficient)
-        # self.accelerostr(meter = sensor_data.accelerometer
-        # self.gyroscope = sensor_data.gyroscope
-        # self.compass = math.degrees(sensor_data.compass)
-
-        # # Readings (Ranged from -99.9 to 99.9)
-        # ranging the data from a min of -99.9 to a max of 99.9
-        # limits = (-99.9, 99.9)
-        # self.accelerometer = (
-        #     max(limits[0], min(limits[1], sensor_data.accelerometer.x)),
-        #     max(limits[0], min(limits[1], sensor_data.accelerometer.y)),
-        #     max(limits[0], min(limits[1], sensor_data.accelerometer.z)))
-        # self.gyroscope = (
-        #     max(limits[0], min(limits[1], math.degrees(sensor_data.gyroscope.x))),
-        #     max(limits[0], min(limits[1], math.degrees(sensor_data.gyroscope.y))),
-        #     max(limits[0], min(limits[1], math.degrees(sensor_data.gyroscope.z))))
-        # self.compass = math.degrees(sensor_data.compass)
-
-
 # ==============================================================================
 # -- RadarSensor ---------------------------------------------------------------
 # ==============================================================================
@@ -196,15 +160,18 @@ class RadarSensor(object):
         bound_x = 0.5 + self._parent_actor_instance.bounding_box.extent.x
         bound_y = 0.5 + self._parent_actor_instance.bounding_box.extent.y
         bound_z = 0.5 + self._parent_actor_instance.bounding_box.extent.z
-
-        # Readings
-        self.data = {"points": {
-            "0": {"velocity": 0.0, "altitude": 0.0, "azimuth": 0.0, "depth": 0.0}
-            }}
-
-        # # Readings (Efficient)
-        # self.points = []
-
+        # Readings (Efficient)
+        self.edata= []
+        self.data = {
+                    "points": {
+                              "0": {
+                                   "velocity": 0.0,
+                                   "altitude": 0.0,
+                                   "azimuth": 0.0,
+                                   "depth": 0.0
+                                   }
+                              }
+                    }
         world = self._parent_actor_instance.get_world()
         bp = world.get_blueprint_library().find('sensor.other.radar')
         bp.set_attribute('horizontal_fov', str(35))
@@ -215,19 +182,16 @@ class RadarSensor(object):
                 carla.Location(x=bound_x + 0.05, z=bound_z+0.05),
                 carla.Rotation(pitch=5)),
             attach_to=parent_actor)
-
-
         # We need a weak reference to self to avoid circular reference.
         weak_self = weakref.ref(self)
         self.sensor_actor_instance.listen(
             lambda radar_data: RadarSensor._Radar_callback(weak_self, radar_data))
-
+    def get_edata(self):
+        return self.edata
     def get_data(self):
         return {"RADAR":self.data}
-
     def destroy(self):
         self.sensor_actor_instance.destroy()
-
     @staticmethod
     def _Radar_callback(weak_self, radar_data):
         self = weak_self()
@@ -236,6 +200,7 @@ class RadarSensor(object):
         # To get a numpy [[vel, altitude, azimuth, depth],...[,,,]]:
         points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
         points = np.reshape(points, (len(radar_data), 4))
+        self.edata=points.tolist()
         for i in range(len(radar_data)):
             self.data["points"].update( {str(i) : {"velocity" : str(points[i][0]),
                                                    "altitude" : str(points[i][1]),
@@ -243,8 +208,6 @@ class RadarSensor(object):
                                                    "depth"    : str(points[i][3])
                                                    }
                                          })
-            # # Readings (Efficient)
-            # self.points = points
 
 
 class Vehicle:
@@ -256,23 +219,29 @@ class Vehicle:
         self.sensor_instances.append(GnssSensor(vehicle_actor_instance))
         self.sensor_instances.append(IMUSensor(vehicle_actor_instance))
         self.sensor_instances.append(RadarSensor(vehicle_actor_instance))
+        self.edata = []
         self.data = {"RADAR": {},
                      "IMU": {},
                      "GNSS": {},
-                     "Velocity": "",
+                     "Velocity": {},
                      }
-
+    def get_edata(self):
+        self.edata.clear()
+        for sensor in self.sensor_instances:
+            self.edata.append(sensor.get_edata())
+        v = self.vehicle_actor_instance.get_velocity()
+        self.edata.append([ v.x, v.y, v.z ])
+        return self.edata
     def get_data(self):
         for sensor in self.sensor_instances:
             self.data.update(sensor.get_data())
-        self.data.update({"Velocity" : self.vehicle_actor_instance.get_velocity()})
+        v = self.vehicle_actor_instance.get_velocity()
+        self.data["Velocity"].update({"x" : v.x, "y" : v.y, "z" : v.z})
         return self.data
-
     def destroy(self):
         for sensor in self.sensor_instances:
             sensor.destroy()
         self.vehicle_actor_instance.destroy()
-
     def apply_control(self, control):
         self.vehicle_actor_instance.apply_control(carla.VehicleControl(throttle=control))
 
@@ -289,7 +258,7 @@ class World:
         self.follower_vehicles = []
 
     def __get_spawn_points(self, number_of_points,vehicle_spacing,bp):
-        if self.map.name != 'Carla/Maps/Town06_Opt':
+        if (self.map.name != 'Carla/Maps/Town06_Opt')|(self.args.reload_map):
             self.client.load_world('Town06_Opt')
             self.map = self.world.get_map()
         # cherry pick points on the map on the longest straight road
@@ -341,17 +310,19 @@ class World:
             vehicle.destroy()
         self.leader_vehicle.destroy()
 
+    def get_edata(self):
+        edata = []
+        for vehicle in self.follower_vehicles:
+            edata.append(vehicle.get_edata())
+        return edata
     def get_data(self):
         data = {}
-        # data.update({self.leader_vehicle.id : self.leader_vehicle.get_data()})
         for vehicle in self.follower_vehicles:
             data.update({vehicle.id : vehicle.get_data()})
         return data
-
     def apply_control(self, control):
-        self.leader_vehicle.apply_control(control[0])
-        for i in range(len(self.follower_vehicles)):
-            self.follower_vehicles[i].apply_control(control[i+1])
+        for i in range(len(self.follower_vehicles)-1):
+            self.follower_vehicles[i].apply_control(control[i])
 
 # ==============================================================================
 
@@ -407,6 +378,11 @@ def parseArguments():
         default=10.0,
         type=int,
         help='Time to wait for the server before quitting (default: 10.0 seconds)')
+    argparser.add_argument(
+        '--reload-map',
+        default=0,
+        type=bool,
+        help='Reload the map (default: False)')
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',
@@ -482,14 +458,20 @@ def main():
         else:
             while True:
                     data = sim_world.get_data()
-                    temp = sim_world.leader_vehicle.get_data()['Velocity']
+
+                    leaderData = sim_world.leader_vehicle.get_data()
+                    temp = leaderData['Velocity']
                     vl = math.sqrt(((temp.x)**2)+((temp.y)**2))
-                    temp = data[1]['Velocity']
+
+                    followerData = data[1]
+                    temp = followerData['Velocity']
                     vf = math.sqrt(((temp.x)**2)+((temp.y)**2))
-                    xl = 10000*float(sim_world.leader_vehicle.get_data()['GNSS']['lat'])
-                    yl = 10000*float(sim_world.leader_vehicle.get_data()['GNSS']['lon'])
-                    xf = 10000*float(data[1]['GNSS']['lat'])
-                    yf = 10000*float(data[1]['GNSS']['lon'])
+
+                    xl = 10000*float(leaderData['GNSS']['lat'])
+                    yl = 10000*float(leaderData['GNSS']['lon'])
+                    xf = 10000*float(followerData['GNSS']['lat'])
+                    yf = 10000*float(followerData['GNSS']['lon'])
+
                     somedata = { 
                                 "xl" : str(xl),
                                 "yl" : str(yl),
@@ -521,13 +503,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-                    # function to calculate the control
-                    # def get_control(xl,yl,xf,yf,vl,vf):
-                    #     # This is a dummy control function. This is where the
-                    #     # control algorithm should be implemented.
-                    #     kp = 0.025
-                    #     kd = 0.01
-                    #     c = -15
-                    #     return math.tanh(kp * (math.sqrt(((xf-xl)**2)+((yf-yl)**2))) + c - kd*(vl-vf))+1
-                    # control[1] = get_control(xl,yl,xf,yf,vl,vf)
-                    #
