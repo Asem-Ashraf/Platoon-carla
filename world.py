@@ -13,14 +13,19 @@ class World:
         self.world = carla_world
         self.map = carla_world.get_map()
         self.settings = carla_world.get_settings()
+        self.spectator = carla_world.get_spectator()
         # self.tm = carla_world.get_trafficmanager()
         self.args = args
         self.leader_vehicle = None
         self.follower_vehicles = []
+        if (self.map.name != 'Carla/Maps/Town06_Opt')|(self.args.reload_map):
+            self.client.load_world('Town06_Opt')
+            self.map = self.world.get_map()
 
     def __get_spawn_points(self, number_of_points,vehicle_spacing,bp):
         if (self.map.name != 'Carla/Maps/Town06_Opt')|(self.args.reload_map):
             self.client.load_world('Town06_Opt')
+            self.specator = self.world.get_spectator()
             self.map = self.world.get_map()
         # cherry pick points on the map on the longest straight road
         spawn_points = self.map.get_spawn_points()
@@ -60,6 +65,10 @@ class World:
         for _ in range(self.args.count-1):
             self.follower_vehicles.append(Vehicle(_+1, self.world.spawn_actor(bp, spawn_points[_])))
         self.leader_vehicle = Vehicle(0, self.world.spawn_actor(bp, spawn_points[self.args.count-1]))
+        # Special point for the spectator above the platoon's spawn location
+        loc = carla.Location(x=-293.839325, y=247.607788, z=48.441013)
+        rot = carla.Rotation(pitch=-88.925880, yaw=90.018211, roll=-0.001002)
+        self.spectator.set_transform(carla.Transform(loc,rot))
 
     def get_actor_blueprints(self, filter):
         bps = self.world.get_blueprint_library().filter(filter)
