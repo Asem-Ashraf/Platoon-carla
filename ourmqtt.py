@@ -49,6 +49,7 @@ class MqttClient(object):
     def disconnect(self):
         self.client.disconnect()
 
+
 # MQTT broker details
 broker_address = "localhost"
 broker_port = 1883
@@ -57,9 +58,11 @@ broker_port = 1883
 publish_topic = "carla/sensors"
 subscribe_topic = "carla/actions"
 
+
 # Callback when a message is published
 def on_publish(client, userdata, mid):
     print(f"Message {mid} published to topic {publish_topic}")
+
 
 # Callback when a message is received from the subscribed topic
 def on_message(client, userdata, msg):
