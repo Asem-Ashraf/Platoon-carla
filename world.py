@@ -22,7 +22,7 @@ class World:
             self.client.load_world('Town06_Opt')
             self.map = self.world.get_map()
 
-    def __get_spawn_points(self, number_of_points,vehicle_spacing,bp):
+    def myGet_spawn_points(self, number_of_points,vehicle_spacing,bp):
         if (self.map.name != 'Carla/Maps/Town06_Opt')|(self.args.reload_map):
             self.client.load_world('Town06_Opt')
             self.specator = self.world.get_spectator()
@@ -61,7 +61,7 @@ class World:
         self.leader_vehicle = Vehicle(0, self.world.spawn_actor(bp, self.map.get_spawn_points()[0]))
         bias = self.leader_vehicle.vehicle_actor_instance.bounding_box.extent.x
         self.leader_vehicle.destroy()
-        spawn_points = self.__get_spawn_points(self.args.count, self.args.spacing+bias*2, bp)
+        spawn_points = self.myGet_spawn_points(self.args.count, self.args.spacing+bias*2, bp)
         for _ in range(self.args.count-1):
             self.follower_vehicles.append(Vehicle(_+1, self.world.spawn_actor(bp, spawn_points[_])))
         self.leader_vehicle = Vehicle(0, self.world.spawn_actor(bp, spawn_points[self.args.count-1]))
