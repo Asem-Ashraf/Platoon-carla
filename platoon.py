@@ -4,17 +4,17 @@ import carla
 import time
 import json
 import math
-import world
-import arguments
+from world import World
+from arguments import parseArguments
 import control
 
 def main():
-    args = arguments.parseArguments()
+    args = parseArguments()
 
     # Carla initialization
     client = carla.Client(args.host, args.port)
     client.set_timeout(args.timeout)
-    sim_world = world.World(client, args)
+    sim_world = World(client, args)
 
     try:
         arg_bp = sim_world.get_actor_blueprints(args.filter)
