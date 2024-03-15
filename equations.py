@@ -1,83 +1,121 @@
 #!/usr/bin/env python3.7
 
 import numpy as np
-import carla
+import casadi as ca
 
-class CarModel():
-    def __init__(self, instance, x_dot=10.0):
+
+class VehicleModel():
+    def __init__(self, instance):
         self.instance = instance
-        physics_control = instance.get_physics_control()
-        center_of_mass = physics_control.center_of_mass
-        bounding_box = instance.bounding_box
-        self.constants = {}
-        self.constants['m'] = physics_control.mass
-        self.constants['Iz'] = physics_control.moi
-        self.constants['Ts'] = 1
-        self.constants['lf'] = bounding_box.extent.x - center_of_mass.x
-        self.constants['lr'] = bounding_box.extent.x + center_of_mass.x
-        self.constants['Caf'] = (physics_control.wheels[0].lat_stiff_value+
-                                 physics_control.wheels[1].lat_stiff_value) / 2
-        self.constants['Car'] = (physics_control.wheels[2].lat_stiff_value+
-                                 physics_control.wheels[3].lat_stiff_value) / 2
-        m=self.constants['m']
-        Iz=self.constants['Iz']
-        Caf=self.constants['Caf']
-        Car=self.constants['Car']
-        lf=self.constants['lf']
-        lr=self.constants['lr']
 
-        # Get the state space matrices for the control
-        A1=-(2*Caf+2*Car)/(m*x_dot)
-        A2=-x_dot-(2*Caf*lf-2*Car*lr)/(m*x_dot)
-        A3=-(2*lf*Caf-2*lr*Car)/(Iz*x_dot)
-        A4=-(2*lf**2*Caf+2*lr**2*Car)/(Iz*x_dot)
+        # smallest possible positive float value
+        spv = np.finfo( np.float64).eps
 
-        self.A=np.array([[A1, 0, A2, 0],
-                    [0, 0, 1, 0],
-                    [A3, 0, A4, 0],
-                    [1, x_dot, 0, 0]
-                   ])
-        self.B=np.array([[2*Caf/m],
-                    [0],
-                    [2*lf*Caf/Iz],
-                    [0]
-                   ])
-        self.C=np.array([[0, 1, 0, 0],
-                    [0, 0, 0, 1]
-                   ])
-        self.D=0
+        m, Iz, lf, lr, caf, car = self.getConstants()
 
-    def get_discrete_state_space_matrices(self):
-        Ts=self.constants['Ts']
-        Ad = np.identity(np.size(self.A,1))+Ts*self.A
-        Bd = Ts*self.B
-        Cd = self.C
-        Dd = self.D
-        return Ad, Bd, Cd, Dd
+        x = ca.SX.sym('X')
+        y = ca.SX.sym('Y')
+        psi = ca.SX.sym('psi')
+        vx = ca.SX.sym('vx')
+        vy = ca.SX.sym('vy')
+        omega = ca.SX.sym('psi_dot')
 
-    def get_next_state_carla(self):
-        '''
-        px - x position
-        py - y position
-        theta - heading
-        v - velocity
-        omega - angular velocity
-        return: state - the state at the next time step
-        '''
-        transform = self.instance.get_transform()
-        px = transform.location.x
-        py = transform.location.y
-        theta = transform.rotation.yaw%360
-        if theta >= 180.0:
-            theta = theta - 360.0
-        if theta < -180.0:
-            theta = theta + 360.0
-        # vx = self.instance.get_velocity().x
-        v = self.instance.get_velocity()
-        vy = v.y
-        v = np.sqrt(v.x**2 + v.y**2)
-        omega = self.instance.get_angular_velocity().z
+        currentStates = ca.vertcat(x, y, psi, vx, vy, omega)
+        self.n_states = currentStates.size()[0]
 
-        next_state = [vy, theta, omega, py]
+        u_acc = ca.SX.sym('u_acc')
+        u_delta = ca.SX.sym('u_delta')
 
-        return next_state, px,v,py,theta
+        controls = ca.vertcat(u_acc, u_delta)
+        self.n_controls = controls.size()[0]
+
+
+
+        #############################################################
+        # TYRE MODEL                                                #
+        #############################################################
+        af = ca.arctan(
+            (-vx * ca.sin(u_delta) + (vy + omega * lf) * ca.cos(u_delta)) /
+            (spv + vx * ca.cos(u_delta) + (vy + omega * lf) * ca.sin(u_delta)))
+        ar = ca.arctan((vy - omega * lr) /
+                       (vx + spv))
+        # af = (u_delta - ca.atan((vy + psi_dot*lr)/ca.fmax(spv,vx)))
+        # ar = ca.atan((psi_dot*lr-vy)/ca.fmax(spv,vx))
+        ff = -caf * af
+        fr = -car * ar
+        #############################################################
+
+        #############################################################
+        # EQUATIONS OF MOTION                                       #
+        #############################################################
+        Dx = vx * ca.cos(psi) - vy * ca.sin(psi)                    #
+        Dy = vx * ca.sin(psi) + vy * ca.cos(psi)                    #
+        Dpsi = omega                                                #
+        # dpsi = vx*np.tan(u_delta)/(lf+lr)                         #
+        DVx = omega * vy - ff * ca.sin(u_delta) / m + u_acc         #
+        DVy = -omega * vx + (ff * ca.cos(u_delta) + fr) / m         #
+        Domega = (lf * ff * ca.cos(u_delta) - lr * fr) / (Iz)       #
+        #############################################################
+
+        changeInStatesDynamics = ca.vertcat(Dx, Dy, Dpsi, DVx, DVy, Domega)
+        self.changeInStates = ca.Function('f', [currentStates, controls],
+                                          [changeInStatesDynamics],
+                                          ['st', 'con'], ['chgs'])
+
+    def getConstants(self):
+        pc = self.instance.get_physics_control()
+
+        # wheels
+        wfl = pc.wheels[0]
+        wfr = pc.wheels[1]
+        wrl = pc.wheels[2]
+        wrr = pc.wheels[3]
+        center_of_mass = pc.center_of_mass + self.instance.get_transform().location
+        wflpos = wfl.position / 100
+        wfrpos = wfr.position / 100
+        wrlpos = wrl.position / 100
+        wrrpos = wrr.position / 100
+        wd = wflpos.distance_2d(wfrpos)
+
+        # cafr = wfr.lat_stiff_value
+        # cafl = wfl.lat_stiff_value
+        # carr = wrr.lat_stiff_value
+        # carl = wrl.lat_stiff_value
+
+        lf = center_of_mass.distance_2d((wflpos + wfrpos) / 2)
+        lr = center_of_mass.distance_2d((wrrpos + wrlpos) / 2)
+        m = pc.mass
+        Iz = m * (lr + lf) * wd
+        caf = 200
+        car = 200
+        # print(f"lf {lf}, lr {lr}, w {wd}, mass {m}, Iz {Iz}")
+
+        return m, Iz, lf, lr, caf, car
+
+    def test(self,
+             st=np.array([0, 0, 0, 0, 0, 0]),
+             con=np.array([6, np.deg2rad(70)]),
+             n=5):
+        for i in range(n):
+            change = self.changeInStates(st, con)
+            new = st + change
+            print(
+                "X     %10.2f                   =dX     %10.2f  |X     %10.2f"
+                % (     st[0],                       change[0],        new[0]))
+            print(
+                "Y     %10.2f                   =dY     %10.2f  |Y     %10.2f"
+                % (     st[1],                       change[1],        new[1]))
+            print(
+                "psi   %10.2f + acc %5.2f       =dpsi   %10.2f  |psi   %10.2f"
+                % (     st[2],     con[0],           change[2],        new[2]))
+            print(
+                "vx    %10.2f + del %5.2f       =dvx    %10.2f  |vx    %10.2f"
+                % (     st[3],     con[1],           change[3],        new[3]))
+            print(
+                "vy    %10.2f                   =dvy    %10.2f  |vy    %10.2f"
+                % (     st[4],                       change[4],        new[4]))
+            print(
+                "omega %10.2f                   =domega %10.2f  |omega %10.2f"
+                % (     st[5],                       change[5],        new[5]))
+            print()
+            st = new

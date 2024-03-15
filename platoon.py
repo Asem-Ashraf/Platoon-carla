@@ -2,14 +2,20 @@
 
 import carla
 import time
+import numpy as np
+import threading
+
 import world
 import arguments
-import control as con
-import trajectory as tj
-import equations as eq
-import numpy as np
-import os
 
+import fusion as fu
+import equations as eq
+import control as con
+
+test = 0
+refs = []
+N = 8
+Ts = 0.07
 
 def main():
     args = arguments.parseArguments()
@@ -17,127 +23,60 @@ def main():
     # Carla initialization
     client = carla.Client(args.host, args.port)
     client.set_timeout(args.timeout)
+
     sim_world = world.World(client, args)
-    # bp = sim_world.get_actor_blueprints('vehicle.bh.crossbike')
+
     bp = sim_world.get_actor_blueprints(args.filter)
 
     spawns = sim_world.map.get_spawn_points()
     transform = spawns[222]
-
-    # loc = transform.location
-    # startwaypoint = sim_world.map.get_waypoint(loc, project_to_road=True, lane_type=carla.LaneType.Driving)
+    np.set_printoptions(suppress=True,precision=4,linewidth=200)
 
     try:
-        instance = sim_world.world.spawn_actor(bp, transform)
-        hz = 8
-        # Load the initial states
-        U1 = 0.0
-        Ts = 0.02
-        # x_dot = 10
-        vehicle = eq.CarModel(instance)
-        vehicle.constants['Ts'] = Ts
+        leader   = sim_world.world.spawn_actor(bp, transform)
+        leader.set_autopilot()
 
-        instance.enable_constant_velocity(carla.Vector3D(10, 0, 0))
-        time.sleep(0.1)
-        instance.disable_constant_velocity()
+        global refs
+        for i in range(N):
+            refs.append(fu.get_current_state(leader))
+            time.sleep(Ts)
 
-        mpc = con.MPC()
-        Ad, Bd, Cd, Dd = vehicle.get_discrete_state_space_matrices()
-        Hdb, Fdbt, Cdb, Adc = mpc.mpc_simplification(Ad, Bd, Cd, Dd, hz)
+        follower = sim_world.world.spawn_actor(bp, transform)
+        vehicle = con.MPC(eq.VehicleModel(follower),N,Ts)
 
-        # trajectory = tj.get_trajectory(startpoint,spacing=Ts*x_dot, n=10000)
-        # for i in trajectory:
-        #     sim_world.world.debug.draw_point(i.transform.location,
-        #                                      size=0.05,
-        #                                      color=carla.Color(255, 0, 0, 255),
-        #                                      life_time=100)
-        # refSignals,xref = tj.simplify_trajectory(trajectory)
-        # k = 0
-        # outputs = 2
-        bounding_box = instance.bounding_box
-        states,px,v,py,theta = vehicle.get_next_state_carla()
-        newtrans = spawns[223]
+        def move(leader,follower):
+            while True:
+                refs.pop(0)
+                refs.append(fu.get_current_state(leader))
+                refs[0] = fu.get_current_state(follower)
+                time.sleep(Ts)
+
+        t1 = threading.Thread(target=move,args=(leader,follower))
+        t1.start()
+
         while True:
-            # for i in states:
-            #     print(f'state: {i:.5f}')
-            # print(f'v: {v:.5f}')
-            # print(f'xref: {xref[int(k/outputs)]:.5f}')
-
-            # if xref[int(k/outputs)]<=px:
-            #     k = k + outputs
-            #     if k + outputs * hz <= len(refSignals):
-            #         r = refSignals[k:k + outputs * hz]
-            #     else:
-            #         r = refSignals[k:len(refSignals)]
-            #         hz = hz - 1
-            transform = newtrans
-            loc = transform.location
-            # loc.x = loc.x + bounding_box.extent.x + 1
-            startwaypoint = sim_world.map.get_waypoint(loc, project_to_road=True, lane_type=carla.LaneType.Driving)
-            # loc = startwaypoint.transform.location
-            # loc.x = loc.x + bounding_box.extent.x + 1
-            # startwaypoint = sim_world.map.get_waypoint(loc, project_to_road=True, lane_type=carla.LaneType.Driving)
-            trajectory = tj.get_trajectory(startwaypoint,spacing=Ts*v, n=hz-2)
-            newtrans = trajectory[1].transform
-            for i in trajectory:
-                sim_world.world.debug.draw_point(i.transform.location, size=0.05, color=carla.Color(255, 0, 0, 100), life_time=0.3)
-            refSignals,xref = tj.simplify_trajectory(trajectory)
-            r = refSignals
-            os.system('clear')
-            # for i in range(0,len(r),2):
-            #     print(f'r{i}: {r[i]:.5f}')
-            #     print(f'r{i+1}: {r[i+1]:.5f}')
-            error = [r[1]-py,xref[0]-px]
-            # print(f'error a: {error[0]:.6f}')
-            print(f'error y: {error[0]:.6f}')
-            print(f'error x: {error[1]:.6f}')
-            # print('loca :', instance.get_transform().location)
-            # Generate the augmented current state and the reference vector
-            x_aug_t = np.transpose([np.concatenate((states, [U1]), axis=0)])
-            # for i in states:
-            #     print(f'state: {i:.5f}')
-            # print(f'px: {px:.5f}')
-            # print(f'xref: {xref[int(k/outputs)]:.5f}')
-            # print('x_aug_t:', x_aug_t)
-            ft = np.matmul( np.concatenate((np.transpose(x_aug_t)[0][0:len(x_aug_t)], r), axis=0), Fdbt)
-            du = -np.matmul(np.linalg.inv(Hdb), np.transpose([ft]))
-            U1 = U1 + du[0][0]
-            # print('U1   :', U1)
-            ster = U1 % 360
-            if ster>= 180.0:
-                ster = ster- 360.0
-            if ster<= -180.0:
-                ster = ster + 360.0
-            # print('U1   :', ster)
-            ster = max(min(ster,50.0),-50.0)/50.0
-            U1 = ster*50.0
-            # print('steer:', ster)
-            # print('==================')
-            # instance.apply_control(carla.VehicleControl(steer=ster))
-            instance.apply_control(carla.VehicleControl(steer=ster))
-            states,px,v,py,theta = vehicle.get_next_state_carla()
-            instance.enable_constant_velocity(carla.Vector3D(10, 0, 0))
-            time.sleep(0.1*Ts)
-            instance.disable_constant_velocity()
-            # Compute new states in the open loop system (interval: Ts/30)
-            # time.sleep(Ts)
-            # trajectory = tj.get_trajectory(sim_world.map.get_waypoint(
-            #     instance.get_transform().location,
-            #     project_to_road=True,
-            #     lane_type=carla.LaneType.Driving),
-            #                                n=hz)
-            # print('trajectory:', trajectory[0].transform)
-            # for i in trajectory:
-            #     sim_world.world.debug.draw_point(i.transform.location,
-            #                                      size=0.01,
-            #                                      color=carla.Color(
-            #                                          255, 0, 0, 255),
-            #                                      life_time=0.1)
-            # refSignals = tj.simplify_trajectory(trajectory)
-        #     # time.sleep(1)
+            start = time.time()
+            acc, steer = vehicle.get_control(refs)
+            end = time.time()
+            if (acc < 0.0):
+                brake = abs(acc)
+                acc = 0.0
+            else:
+                brake = 0.0
+            follower.apply_control( carla.VehicleControl(throttle=acc/6.0, steer=steer/np.deg2rad(70),brake = brake/6.0))
+            print("-----------------------")
+            print("a ",acc)
+            print("d ",steer)
+            print("b ",brake)
+            print("-----------------------")
+            print("time:",end-start)
+            delay = Ts-(end-start)
+            if(delay>0)
+                time.sleep(delay)
 
     finally:
-        instance.destroy()
+        leader.destroy()
+        follower.destroy()
         print('==================')
         print('Platoon Destroyed.')
         print('==================')
@@ -145,3 +84,27 @@ def main():
 
 if __name__ == '__main__':
     main()
+            # print(follower.get_control())
+            #
+            # estimated_inputs_all = estimated_values[:n_controls*(N-1)]
+            # all_states_init_val = estimated_values[(N-1)*n_controls:]
+            # all_inputs_init_val[0] = acc
+            # all_inputs_init_val[1] = steer
+            # st = all_states_init_val.reshape(N,n_states)
+            # u = estimated_inputs_all.reshape(N-1,n_controls)
+            # print("where I got to           ",np.array(refs[0]))
+            # print("apply this to go                 +",u[0])
+            # print("where I want to go next  ",np.array(refs[1]))
+            # print("I think I will get there ", st[1])
+            # # sum = [0,0,0,0,0,0]
+            # # for i in range(N-1):
+            # #     print("ref ",i," ",np.array(refs[i]))
+            # #     print("inp ",i,"    +  ",u[i])
+            # #     print("sta ",i," ",st[i])
+            # #     print("err ",i," ",st[i]-np.array(refs[i]))
+            # #     print()
+            #
+            #     # sum += refs[i]-st[i]
+            # # print(sum/N)
+            # # print()
+
