@@ -86,7 +86,12 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('\nCancelled by the user. Bye!')
+    except RuntimeError as e:
+        print(e)
 # print("where I got to           ",np.array(refs[0]))
 # print("apply this to go                 +",u[0])
 # print("where I want to go next  ",np.array(refs[1]))

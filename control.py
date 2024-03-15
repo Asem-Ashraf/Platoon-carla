@@ -56,13 +56,13 @@ class MPC():
         estimated_values = solution['x'].full()
         self.control_values = estimated_values[:self.n_controls*(self.total_controls)]
         self.states_values  = estimated_values[(self.total_controls)*self.n_controls:]
-        acc = estimated_values[0][0]
-        steer = estimated_values[1][0]
+        acc = estimated_values[0][0]/self.a_max
+        steer = estimated_values[1][0]/self.delta_max
         return acc, steer
 
     def arrange(self):
-        a_max = 6
-        delta_max = np.deg2rad(70)
+        self.a_max = 6
+        self.delta_max = np.deg2rad(70)
         upper_bounds_states = {
             'x': np.inf,
             'y': np.inf,
