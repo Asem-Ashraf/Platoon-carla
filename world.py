@@ -1,8 +1,5 @@
 #!/usr/bin/env python3.7
 
-# ==============================================================================
-# -- imports -------------------------------------------------------------------
-# ==============================================================================
 import carla
 from vehicle import Vehicle
 
@@ -75,7 +72,9 @@ class World:
         if len(bps) == 1:
             return bps[0]
         else:
-            return None
+            print("Blueprint ",filter," not found")
+            print("exiting...")
+            exit()
 
     def destroy_platoon(self):
         for vehicle in self.follower_vehicles:
@@ -87,11 +86,13 @@ class World:
         for vehicle in self.follower_vehicles:
             edata.append(vehicle.get_edata())
         return edata
+
     def get_data(self):
         data = {}
         for vehicle in self.follower_vehicles:
             data.update({vehicle.id : vehicle.get_data()})
         return data
+
     def apply_control(self, control):
         for i in range(len(self.follower_vehicles)-1):
             self.follower_vehicles[i].apply_control(control[i])

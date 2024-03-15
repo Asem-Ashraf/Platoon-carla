@@ -38,8 +38,8 @@ def parseArguments():
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',
-        default='vehicle.tesla.cybertruck',
-        help='actor filter (default: "vehicle.tesla.cybertruck")')
+        default='vehicle.tesla.model3',
+        help='actor filter (default: "vehicle.tesla.model3")')
     argparser.add_argument(
         '--sync',
         action='store_true',
