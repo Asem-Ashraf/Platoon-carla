@@ -13,8 +13,8 @@ class MPC():
         self.total_states = Horizon
         self.total_controls = self.total_states - 1
 
-        self.control_values = np.zeros(self.total_controls)
-        self.states_values  = np.zeros(self.total_states)
+        self.control_values = np.zeros(self.total_controls*self.n_controls)
+        self.states_values  = np.zeros(self.total_states*self.n_states)
 
         self.U      = ca.SX.sym('u',    self.n_controls,self.total_controls)
 
@@ -25,7 +25,7 @@ class MPC():
 
         obj, g = self.get_costfunction(T, dynamics.changeInStates)
 
-        self.lbx, self.ubx, self.lbg, self.ubg, opt_params, opt_variables = self.arrange(Horizon)
+        self.lbx, self.ubx, self.lbg, self.ubg, opt_params, opt_variables = self.arrange()
 
         nlp_prob = {
             'f': obj,
@@ -44,7 +44,7 @@ class MPC():
     def get_control(self, references):
         N = self.N
         all_states_init_val = np.array(references[:N]).reshape(-1)
-        parameters = np.concatenate((self.control_values[:2], references[:N]))
+        parameters = np.concatenate((self.control_values[:2], all_states_init_val))
         init_values = np.concatenate((self.control_values, all_states_init_val))
         solution = self.solver(x0=init_values,
                                p=parameters,
@@ -54,8 +54,8 @@ class MPC():
                                ubg=self.ubg)
 
         estimated_values = solution['x'].full()
-        self.control_values = estimated_values[:self.n_controls*(self.total_controls)]
-        self.states_values  = estimated_values[(self.total_controls)*self.n_controls:]
+        self.control_values = estimated_values[:self.n_controls*(self.total_controls)].reshape(-1)
+        self.states_values  = estimated_values[(self.total_controls)*self.n_controls:].reshape(-1)
         acc = estimated_values[0][0]/self.a_max
         steer = estimated_values[1][0]/self.delta_max
         return acc, steer
@@ -80,12 +80,12 @@ class MPC():
             'psi_dot': -np.inf,
         }
         upper_bounds_controls = {
-            'acc': a_max,
-            'delta': delta_max,
+            'acc': self.a_max,
+            'delta': self.delta_max,
         }
         lower_bounds_controls = {
-            'acc': -a_max, # This negative value is not for going backward (braking).
-            'delta': -delta_max,
+            'acc': -self.a_max, # This negative value is not for going backward (braking).
+            'delta': -self.delta_max,
         }
         lbs = list(lower_bounds_states.values())
         ubs = list(upper_bounds_states.values())
@@ -121,7 +121,7 @@ class MPC():
         obj = 0
 
         # Minimize X,Y,psi,Vx,Vy,omega
-        Q = np.diag([0.3, 0.3, 1, 0.1, 0.1, 1])
+        Q = np.diag([3, 3, 10, 1, 1, 1])
 
         # Minimize change in acceleration and steering
         Rchange = np.diag([1, 1])
@@ -149,7 +149,7 @@ class MPC():
 
         # given the control that was applied last time, minimize the difference between the last control and the first control
         changeincont = self.U[:, 0] - self.UL
-        obj = obj + ca.mtimes([ changeincont.T, Rchange, changeincont ])
+        obj = obj + ca.mtimes([ changeincont.T, 0.1*Rchange, changeincont ])
         # Then minimize control changes across the whole trajectory for more vehicle stability
         for i in range(self.n_controls - 1):
             changeincont = self.U[:, i] - self.U[:, i + 1]

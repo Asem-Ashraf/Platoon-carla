@@ -15,7 +15,7 @@ import control as con
 test = 0
 refs = []
 N = 8
-Ts = 0.07
+Ts = 0.1
 
 def main():
     args = parseArguments()
@@ -39,7 +39,7 @@ def main():
         leader.set_autopilot()
 
         global refs
-        for i in range(N):
+        for i in range(N*8):
             refs.append(fu.get_current_state(leader))
             time.sleep(Ts)
 
