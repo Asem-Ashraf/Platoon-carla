@@ -15,25 +15,24 @@ import control as con
 test = 0
 refs = []
 N = 8
-Ts = 0.1
+Ts = 0.05
 
 def main():
+    np.set_printoptions(suppress=True,precision=4,linewidth=200)
+
     args = parseArguments()
 
-    # Carla initialization
-    client = carla.Client(args.host, args.port)
-    client.set_timeout(args.timeout)
+    sim_world = World(args)
 
-    sim_world = World(client, args)
-
-    bp = sim_world.get_actor_blueprints(args.filter)
+    bp = sim_world.bp
 
     spawns = sim_world.map.get_spawn_points()
     transform = spawns[222]
-    np.set_printoptions(suppress=True,precision=4,linewidth=200)
+
     cars = []
 
     try:
+
         leader   = sim_world.world.spawn_actor(bp, transform)
         cars.append(leader)
         leader.set_autopilot()
