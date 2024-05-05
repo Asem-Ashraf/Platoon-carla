@@ -34,7 +34,7 @@ class MPC():
             'g': ca.vertcat(*g)
         }
         opts_setting = {
-            'ipopt.max_iter': 50,
+            'ipopt.max_iter': 100,
             'ipopt.print_level': 0,
             'ipopt.acceptable_tol': 1e-8,
             'ipopt.acceptable_obj_change_tol': 1e-6
@@ -68,16 +68,16 @@ class MPC():
             'y': np.inf,
             'psi': np.pi,
             'vx': 30, # the limit below which carla max acceleration = 6
-            'vy': np.inf,
-            'psi_dot': np.inf,
+            'vy': 3,
+            'psi_dot': 2,
         }
         lower_bounds_states = {
             'x': -np.inf,
             'y': -np.inf,
             'psi': -np.pi,
             'vx': 0, # can't go backwards
-            'vy': -np.inf,
-            'psi_dot': -np.inf,
+            'vy': -3,
+            'psi_dot': -2,
         }
         upper_bounds_controls = {
             'acc': self.a_max,
@@ -120,11 +120,11 @@ class MPC():
         g = []
         obj = 0
 
-        # Minimize X,Y,psi,Vx,Vy,omega
-        Q = np.diag([3, 3, 10, 1, 1, 1])
+        # Minimize     X,   Y,psi,Vx,Vy,omega
+        Q = np.diag([1, 1, 2, 0.1, 0.01, 0.01])
 
         # Minimize change in acceleration and steering
-        Rchange = np.diag([1, 1])
+        Rchange = np.diag([0.1, 0.01])
         # Minimize acceleration
         R = np.diag([0.01, 0.0])
 
@@ -140,16 +140,16 @@ class MPC():
             obj = obj + ca.mtimes([referror.T, Q, referror])
         # prioritize minimize error in the last references point for better following of the trajectory
         referror = self.X[:, -1] - self.X_ref[:, -1]
-        obj = obj + ca.mtimes([referror.T, 100*Q, referror])
+        obj = obj + ca.mtimes([referror.T, 2*Q, referror])
 
-        # minimize controls for more self._controls_matrixel efficiency(if the acc was redself._controls_matrixced)
+        # minimize controls for more fuel efficiency(if the acc was reduced)
         for i in range(self.n_controls):
             cont = self.U[:, i]
             obj = obj + ca.mtimes( [cont.T, R, cont])
 
         # given the control that was applied last time, minimize the difference between the last control and the first control
         changeincont = self.U[:, 0] - self.UL
-        obj = obj + ca.mtimes([ changeincont.T, 0.1*Rchange, changeincont ])
+        obj = obj + ca.mtimes([ changeincont.T, Rchange, changeincont ])
         # Then minimize control changes across the whole trajectory for more vehicle stability
         for i in range(self.n_controls - 1):
             changeincont = self.U[:, i] - self.U[:, i + 1]
