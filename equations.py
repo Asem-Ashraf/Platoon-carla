@@ -5,13 +5,16 @@ import casadi as ca
 
 
 class VehicleModel():
-    def __init__(self, instance):
-        self.instance = instance
+    # def __init__(self, instance):
+    #     self.instance = instance
+    def __init__(self):
+        # self.instance = instance
 
         # smallest possible positive float value
         spv = np.finfo( np.float64).eps
 
-        m, Iz, lf, lr, caf, car = self.getConstants()
+        # m, Iz, lf, lr, caf, car = self.getConstants()
+        m, Iz, lf, lr, caf, car = 1500,150,1.5,1.6,20,20
 
         x = ca.SX.sym('X')
         y = ca.SX.sym('Y')
@@ -62,35 +65,35 @@ class VehicleModel():
                                           [changeInStatesDynamics],
                                           ['st', 'con'], ['chgs'])
 
-    def getConstants(self):
-        pc = self.instance.get_physics_control()
-
-        # wheels
-        wfl = pc.wheels[0]
-        wfr = pc.wheels[1]
-        wrl = pc.wheels[2]
-        wrr = pc.wheels[3]
-        center_of_mass = pc.center_of_mass + self.instance.get_transform().location
-        wflpos = wfl.position / 100
-        wfrpos = wfr.position / 100
-        wrlpos = wrl.position / 100
-        wrrpos = wrr.position / 100
-        wd = wflpos.distance_2d(wfrpos)
-
-        # cafr = wfr.lat_stiff_value
-        # cafl = wfl.lat_stiff_value
-        # carr = wrr.lat_stiff_value
-        # carl = wrl.lat_stiff_value
-
-        lf = center_of_mass.distance_2d((wflpos + wfrpos) / 2)
-        lr = center_of_mass.distance_2d((wrrpos + wrlpos) / 2)
-        m = pc.mass
-        Iz = m * (lr + lf) * wd
-        caf = 200
-        car = 200
-        # print(f"lf {lf}, lr {lr}, w {wd}, mass {m}, Iz {Iz}")
-
-        return m, Iz, lf, lr, caf, car
+    # def getConstants(self):
+    #     pc = self.instance.get_physics_control()
+    #
+    #     # wheels
+    #     wfl = pc.wheels[0]
+    #     wfr = pc.wheels[1]
+    #     wrl = pc.wheels[2]
+    #     wrr = pc.wheels[3]
+    #     center_of_mass = pc.center_of_mass + self.instance.get_transform().location
+    #     wflpos = wfl.position / 100
+    #     wfrpos = wfr.position / 100
+    #     wrlpos = wrl.position / 100
+    #     wrrpos = wrr.position / 100
+    #     wd = wflpos.distance_2d(wfrpos)
+    #
+    #     # cafr = wfr.lat_stiff_value
+    #     # cafl = wfl.lat_stiff_value
+    #     # carr = wrr.lat_stiff_value
+    #     # carl = wrl.lat_stiff_value
+    #
+    #     lf = center_of_mass.distance_2d((wflpos + wfrpos) / 2)
+    #     lr = center_of_mass.distance_2d((wrrpos + wrlpos) / 2)
+    #     m = pc.mass
+    #     Iz = m * (lr + lf) * wd
+    #     caf = 200
+    #     car = 200
+    #     # print(f"lf {lf}, lr {lr}, w {wd}, mass {m}, Iz {Iz}")
+    #
+    #     return m, Iz, lf, lr, caf, car
 
     def test(self,
              st=np.array([0, 0, 0, 0, 0, 0]),
