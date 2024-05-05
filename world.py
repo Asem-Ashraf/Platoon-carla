@@ -37,7 +37,7 @@ class World:
                 exit()
         self.settings = carla_world.get_settings()
         self.map = self.world.get_map()
-        self.specator = self.world.get_spectator()
+        self.spectator = self.world.get_spectator()
 
 
     def spawn_platoon(self):
@@ -104,7 +104,7 @@ class World:
         '''
         if (self.map.name != 'Carla/Maps/Town06_Opt') | (self.args.reload_map):
             self.client.load_world('Town06_Opt')
-            self.specator = self.world.get_spectator()
+            self.spectator = self.world.get_spectator()
             self.map = self.world.get_map()
         # cherry pick points on the map on the longest straight road
         spawn_points = self.map.get_spawn_points()
@@ -134,7 +134,7 @@ class World:
             X += vehicle_spacing
         return spawn_points
     def get_vehicle_length(self):
-        v = self.world.spawn_actor(self.bp, self.map.get_spawn_points()[0])
+        v = self.world.spawn_actor(self.bp, self.map.get_spawn_points()[190])
         half_length = v.bounding_box.extent.x
         v.destroy()
         return half_length * 2
