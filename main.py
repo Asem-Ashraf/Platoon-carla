@@ -40,11 +40,13 @@ def main():
         global refs
         for i in range(N*8):
             refs.append(fu.get_current_state(leader))
+            # print(refs[-1])
             time.sleep(Ts)
 
         follower = sim_world.world.spawn_actor(bp, transform)
         cars.append(follower)
-        vehicle = con.MPC(eq.VehicleModel(follower),N,Ts)
+        vehicle = con.MPC(eq.VehicleModel(),N,Ts)
+        # vehicle = con.MPC(eq.VehicleModel(follower),N,Ts)
 
         def move(leader,follower):
             while True:
@@ -58,7 +60,18 @@ def main():
 
         while True:
             start = time.time()
-            acc, steer = vehicle.get_control(refs)
+            referencesss = refs[:N+1]
+            # if the distance between the 0th state and the Nth state is less than distance D
+            # then the velocity should be all zeros in these states
+            dis = 0
+            for i in range(N):
+                dis += np.sqrt(((referencesss[i][0]-referencesss[i+1][0])**2)+((referencesss[i][1]-referencesss[i+1][1])**2))
+            print(dis)
+            if(dis<=7):
+                # print(referencesss)
+                for i in range(N):
+                    referencesss[i+1][3] = 0
+            acc, steer = vehicle.get_control(referencesss)
             end = time.time()
             if (acc < 0.0):
                 brake = abs(acc)
@@ -66,12 +79,12 @@ def main():
             else:
                 brake = 0.0
             follower.apply_control(carla.VehicleControl(throttle=acc, steer=steer,brake = brake))
-            print("-----------------------")
-            print("a ",acc)
-            print("d ",steer)
-            print("b ",brake)
+            # print("-----------------------")
+            # print("a ",acc)
+            # print("d ",steer)
+            # print("b ",brake)
             print("solver time: ",end-start)
-            print("-----------------------")
+            # print("-----------------------")
             delay = Ts-(end-start)
             if(delay>0):
                 time.sleep(delay)
