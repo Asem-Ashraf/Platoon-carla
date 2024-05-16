@@ -1,16 +1,16 @@
-#!/usr/bin/env python3.7
-
 import numpy as np
 import casadi as ca
 
+spv = 2.2250738585072014e-308
+
 class MPC():
-    def __init__(self, dynamics, Horizon, T):
-        self.N = Horizon
+    def __init__(self, dynamics, N, T):
+        self.N = N
 
         self.n_controls = dynamics.n_controls
         self.n_states   = dynamics.n_states
 
-        self.total_states = Horizon
+        self.total_states = N
         self.total_controls = self.total_states - 1
 
         self.control_values = np.zeros(self.total_controls*self.n_controls)
@@ -42,8 +42,17 @@ class MPC():
         self.solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
     def get_control(self, references):
-        N = self.N
-        all_states_init_val = np.array(references[:N]).reshape(-1)
+        # if the distance between the 0th state and the Nth state is less than distance D
+        # then the velocity should be all zeros in these states
+        dis = 0
+        for i in range(self.N):
+            dis += np.sqrt(((references[i][0]-references[i+1][0])**2)+((references[i][1]-references[i+1][1])**2))
+        SAFE_DISTANCE = 7
+        if(dis<= SAFE_DISTANCE ):
+            for i in range(self.N-1):
+                references[i+1][3] = spv
+
+        all_states_init_val = np.array(references).reshape(-1)
         parameters = np.concatenate((self.control_values[:2], all_states_init_val))
         init_values = np.concatenate((self.control_values, all_states_init_val))
         solution = self.solver(x0=init_values,
