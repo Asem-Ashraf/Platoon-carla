@@ -121,12 +121,12 @@ class MPC():
         obj = 0
 
         # Minimize     X,   Y,psi,Vx,Vy,omega
-        Q = np.diag([1, 1, 2, 0.1, 0.01, 0.01])
+        Q = np.diag([100, 100, 1000, 100, 100, 10])
 
         # Minimize change in acceleration and steering
-        Rchange = np.diag([0.1, 0.01])
+        Rchange = np.diag([10, 10])
         # Minimize acceleration
-        R = np.diag([0.01, 0.0])
+        R = np.diag([1, 0.0])
 
         g.append(self.X[:, 0] - self.X_ref[:, 0])
         for i in range(self.n_states - 1):
