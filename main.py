@@ -1,6 +1,6 @@
 import equations as eq
 import control as con
-from trajectory import shift_trajectory
+import trajectory as tj
 import time
 
 references = []
@@ -9,9 +9,10 @@ Ts = 0.05 # 50ms
 
 def main():
     vehicle = con.MPC(eq.VehicleModel(),N,Ts)
+    references = tj.get_init_trajectory(N)
     while True:
         start = time.time()
-        acc, steer = vehicle.get_control(shift_trajectory(references))
+        acc, steer = vehicle.get_control(tj.shift_trajectory(references))
         # send the values
         end = time.time()
         delay = Ts-(end-start)
