@@ -14,8 +14,8 @@ import control as con
 
 test = 0
 refs = []
-N = 8
-Ts = 0.05
+N = 15
+Ts = 0.08
 
 def main():
     np.set_printoptions(suppress=True,precision=4,linewidth=200)
@@ -27,7 +27,7 @@ def main():
     bp = sim_world.bp
 
     spawns = sim_world.map.get_spawn_points()
-    transform = spawns[222]
+    transform = spawns[221]
 
     cars = []
 
@@ -36,9 +36,10 @@ def main():
         leader   = sim_world.world.spawn_actor(bp, transform)
         cars.append(leader)
         leader.set_autopilot()
+        sim_world.tm.ignore_signs_percentage(leader,100)
 
         global refs
-        for i in range(N*8):
+        for i in range(N*3):
             refs.append(fu.get_current_state(leader))
             # print(refs[-1])
             time.sleep(Ts)
@@ -51,8 +52,8 @@ def main():
         def move(leader,follower):
             while True:
                 refs.pop(0)
-                refs.append(fu.get_current_state(leader))
                 refs[0] = fu.get_current_state(follower)
+                refs.append(fu.get_current_state(leader))
                 time.sleep(Ts)
 
         t1 = threading.Thread(target=move,args=(leader,follower))
@@ -60,18 +61,18 @@ def main():
 
         while True:
             start = time.time()
-            referencesss = refs[:N+1]
-            # if the distance between the 0th state and the Nth state is less than distance D
-            # then the velocity should be all zeros in these states
-            dis = 0
-            for i in range(N):
-                dis += np.sqrt(((referencesss[i][0]-referencesss[i+1][0])**2)+((referencesss[i][1]-referencesss[i+1][1])**2))
-            print(dis)
-            if(dis<=7):
-                # print(referencesss)
-                for i in range(N):
-                    referencesss[i+1][3] = 0
-            acc, steer = vehicle.get_control(referencesss)
+            # referencesss = refs[:N+1]
+            # # if the distance between the 0th state and the Nth state is less than distance D
+            # # then the velocity should be all zeros in these states
+            # dis = 0
+            # for i in range(N):
+            #     dis += np.sqrt(((referencesss[i][0]-referencesss[i+1][0])**2)+((referencesss[i][1]-referencesss[i+1][1])**2))
+            # print(dis)
+            # if(dis<=7):
+            #     # print(referencesss)
+            #     for i in range(N):
+            #         referencesss[i+1][3] = 0
+            acc, steer = vehicle.get_control(refs)
             end = time.time()
             if (acc < 0.0):
                 brake = abs(acc)
@@ -79,11 +80,11 @@ def main():
             else:
                 brake = 0.0
             follower.apply_control(carla.VehicleControl(throttle=acc, steer=steer,brake = brake))
-            # print("-----------------------")
-            # print("a ",acc)
-            # print("d ",steer)
-            # print("b ",brake)
-            print("solver time: ",end-start)
+            print("-----------------------")
+            print("a ",acc)
+            print("d ",steer)
+            print("b ",brake)
+            print("solver time: ",(end-start)*1000,"ms")
             # print("-----------------------")
             delay = Ts-(end-start)
             if(delay>0):

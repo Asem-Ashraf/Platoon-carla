@@ -16,6 +16,8 @@ class World:
         self.client = client
         self.world = carla_world
 
+        self.tm = client.get_trafficmanager()
+
         self.leader_vehicle = None
         self.follower_vehicles = []
         bp = self.world.get_blueprint_library().filter(args.filter)
