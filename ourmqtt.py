@@ -1,7 +1,5 @@
 #!/usr/bin/env python3.7
-
 import mqtt
-
 
 class MqttClient(object):
     # @brief Initialize the MQTT client
@@ -55,8 +53,8 @@ broker_address = "localhost"
 broker_port = 1883
 
 # Define topics
-publish_topic = "carla/sensors"
-subscribe_topic = "carla/actions"
+publish_topic = "carla/states1"
+subscribe_topic = "carla/actions1"
 
 
 # Callback when a message is published
@@ -67,3 +65,11 @@ def on_publish(client, userdata, mid):
 # Callback when a message is received from the subscribed topic
 def on_message(client, userdata, msg):
     print(f"Received message: {msg.payload.decode()} from topic {msg.topic}")
+
+
+def initialize_communication():
+    pass
+def send_data():
+    pass
+def get_controls():
+    pass

@@ -12,8 +12,6 @@ class Vehicle:
         return fu.get_current_state(self.carla_instance)
 
     def destroy(self):
-        for sensor in self.sensor_instances:
-            sensor.destroy()
         self.carla_instance.destroy()
 
     def apply_control(self, control):

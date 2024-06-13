@@ -57,9 +57,9 @@ class World:
             self.world.spawn_actor(self.bp, spawn_points[self.args.count - 1]))
         # Special point for the spectator above the platoon's spawn location
         # loc = carla.Location(x=-293.839325, y=247.607788, z=48.441013)
-        loc = self.leader_vehicle.get_transform().loc
+        loc = spawn_points[self.args.count - 1].location
         loc.z += 50
-        rot = carla.Rotation(pitch=-90.0, yaw=90.0, roll=0.0)
+        rot = carla.Rotation(pitch=90.0, yaw=90.0, roll=0.0)
         self.spectator.set_transform(carla.Transform(loc, rot))
 
 
@@ -79,6 +79,7 @@ class World:
         data = {}
         for vehicle in self.follower_vehicles:
             data.update({vehicle.id: vehicle.get_data()})
+        data.update({0: self.leader_vehicle.get_data()})
         return data
 
     def apply_platoon_control(self, control):

@@ -33,8 +33,7 @@ def parseArguments():
         help='Time to wait for the server before quitting (default: 10.0 seconds)')
     argparser.add_argument(
         '--reload-map',
-        default=0,
-        type=bool,
+        action='store_true',
         help='Reload the map (default: False)')
     argparser.add_argument(
         '--filter',

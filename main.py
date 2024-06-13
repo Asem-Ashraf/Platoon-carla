@@ -2,7 +2,6 @@
 
 import time
 from world import World
-import control as con
 import ourmqtt
 
 Ts = 0.05
@@ -12,15 +11,16 @@ def main():
 
     try:
         sim_world.spawn_platoon()
+        ourmqtt.initialize_communication()
         if not sim_world.args.sync:
             while True:
-                data = sim_world.get_data()
+                data = sim_world.get_platoon_data()
 
                 leaderData = sim_world.leader_vehicle.get_data()
 
                 ourmqtt.send_data(data,leaderData)
 
-                sim_world.apply_control(con.get_controls())
+                sim_world.apply_control(ourmqtt.get_controls())
 
                 # A delay so that the environment changes a little bit before
                 # sending the next sensor readings. Otherwise, this script
