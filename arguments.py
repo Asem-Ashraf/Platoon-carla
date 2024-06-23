@@ -39,23 +39,20 @@ def parseArguments():
         '--filter',
         metavar='PATTERN',
         default='vehicle.tesla.cybertruck',
-        help='actor filter (default: "vehicle.tesla.cybertruck")')
+        help='actor filter (default: "vehicle.tesla.model3")')
     argparser.add_argument(
         '--sync',
         action='store_true',
         help='Activate synchronous mode execution')
+
     args = argparser.parse_args()
-    # This code looks ugly. Fix those 2 exception handlings.
-    try:
-        if args.spacing <0:
-            raise Exception("spacing negative number")
-    except Exception as e:
-        print(str(e))
+
+    if args.spacing <0:
+        print("spacing negative number")
+        print("Exiting...")
         exit()
-    try:
-        if args.timeout<0:
-            raise Exception("timeout negative number")
-    except Exception as e:
-        print(str(e))
+    if args.timeout<0:
+        print("timeout negative number")
+        print("Exiting...")
         exit()
     return args
