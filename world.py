@@ -4,20 +4,49 @@ import carla
 from vehicle import Vehicle
 from arguments import parseArguments
 
+# MAP = 'Town07_Opt'
+MAP = 'Town06_Opt'
+MAP_FULLNAME = 'Carla/Maps/'+MAP
+
 
 class World:
     def __init__(self):
         self.args = parseArguments()
 
-        client = carla.Client(self.args.host, self.args.port)
-        client.set_timeout(self.args.timeout)
-        carla_world = client.get_world()
+        self.client = carla.Client(self.args.host, self.args.port)
+        self.client.set_timeout(self.args.timeout)
 
-        self.client = client
-        self.world = carla_world
+        self.world = self.client.get_world()
+        self.tm = self.client.get_trafficmanager()
+
+        if (self.world.get_map().name != MAP_FULLNAME) | (self.args.reload_map):
+            try:
+                self.client.load_world(MAP)
+            except:
+                print("Map: Town06_Opt is not available")
+                print("Have you downloaded it from additional maps?")
+                print("exiting...")
+                exit()
+
+        self.map = self.world.get_map()
+        self.spectator = self.world.get_spectator()
+        self.settings = self.world.get_settings()
+        self.blueprint_lib = self.world.get_blueprint_library()
+
+        self.settings.fixed_delta_seconds = 1/50
+        self.settings.synchronous_mode = True # Enables synchronous mode
+        self.settings.substepping = True
+        self.settings.max_substep_delta_time = 0.005
+        self.settings.max_substeps = 16
+
+        self.tm.set_synchronous_mode(True)
+        self.tm.set_random_device_seed(2)
+        
+        self.world.apply_settings(self.settings)
+        # self.world.freeze_all_traffic_lights(True)
 
         self.leader_vehicle = None
-        self.follower_vehicles = []
+        self.follower_vehicles = None
         bp = self.world.get_blueprint_library().filter(self.args.filter)
 
         if len(bp) < 1:
@@ -27,41 +56,30 @@ class World:
             exit()
         self.bp = bp[0]
 
-        if (self.world.get_map().name != 'Carla/Maps/Town06_Opt') | (self.args.reload_map):
-            try:
-                self.client.load_world('Town06_Opt')
-            except:
-                print("Map: Town06_Opt is not available")
-                print("Have you downloaded it from additional maps?")
-                print("exiting...")
-                exit()
-        self.settings = carla_world.get_settings()
-        self.map = self.world.get_map()
-        self.spectator = self.world.get_spectator()
-
-
     def spawn_platoon(self):
         '''
             spawns the leader and the followers along a specific road in the map
             then moves the spectator to view the platoon from above
         '''
         vehicle_length = self.get_vehicle_length()
-        spawn_points = self.__myGet_spawn_points(
-            self.args.count, self.args.spacing + vehicle_length)
+
+        spawn_points = self.__myGet_spawn_points( self.args.count, self.args.spacing + vehicle_length)
+
+        if self.follower_vehicles != None:
+            print("Platoon already spawned")
+            print("Exiting...")
+            exit()
+        self.follower_vehicles = []
         for _ in range(self.args.count - 1):
-            self.follower_vehicles.append(
-                Vehicle(_ + 1, self.world.spawn_actor(self.bp,
-                                                      spawn_points[_])))
-        self.leader_vehicle = Vehicle(
-            0,
-            self.world.spawn_actor(self.bp, spawn_points[self.args.count - 1]))
+            self.follower_vehicles.append( Vehicle(_ + 1, self.world.spawn_actor(self.bp, spawn_points[_])))
+
+        self.leader_vehicle = Vehicle( 0, self.world.spawn_actor(self.bp, spawn_points[self.args.count - 1]))
+
         # Special point for the spectator above the platoon's spawn location
-        # loc = carla.Location(x=-293.839325, y=247.607788, z=48.441013)
         loc = spawn_points[self.args.count - 1].location
         loc.z += 50
         rot = carla.Rotation(pitch=90.0, yaw=90.0, roll=0.0)
         self.spectator.set_transform(carla.Transform(loc, rot))
-
 
     def destroy_platoon(self):
         '''
@@ -71,11 +89,29 @@ class World:
             vehicle.destroy()
         self.leader_vehicle.destroy()
 
+    def get_platoon_edata(self):
+        '''
+            returns the data of each vehicle in order in a list
+        '''
+        if self.leader_vehicle == None:
+            print("Spawn the platoon first")
+            print("Exiting...")
+            exit()
+        edata = []
+        edata.append(self.leader_vehicle.get_edata())
+        for vehicle in self.follower_vehicles:
+            edata.append(vehicle.get_edata())
+        return edata
+
     def get_platoon_data(self):
         '''
             returns the data of each vehicle in a dictionary where each vehicle
             and its sensor readings are labeled
         '''
+        if self.leader_vehicle == None:
+            print("Spawn the platoon first")
+            print("Exiting...")
+            exit()
         data = {}
         for vehicle in self.follower_vehicles:
             data.update({vehicle.id: vehicle.get_data()})
@@ -87,6 +123,10 @@ class World:
             control: a list of controls for each follower in order
             applies the controls to the vehicles in order
         '''
+        if self.leader_vehicle == None:
+            print("Spawn the platoon first")
+            print("Exiting...")
+            exit()
         for i in range(len(self.follower_vehicles) - 1):
             self.follower_vehicles[i].apply_control(control[i])
 
@@ -96,8 +136,8 @@ class World:
             vehicle_spacing: the distance between each point
             returns a list of n points with vehicle_spacing between them
         '''
-        if (self.map.name != 'Carla/Maps/Town06_Opt') | (self.args.reload_map):
-            self.client.load_world('Town06_Opt')
+        if (self.map.name != MAP_FULLNAME) | (self.args.reload_map):
+            self.client.load_world(MAP)
             self.spectator = self.world.get_spectator()
             self.map = self.world.get_map()
         # cherry pick points on the map on the longest straight road
@@ -127,6 +167,7 @@ class World:
             spawn_points.append(transform)
             X += vehicle_spacing
         return spawn_points
+
     def get_vehicle_length(self):
         v = self.world.spawn_actor(self.bp, self.map.get_spawn_points()[190])
         half_length = v.bounding_box.extent.x
