@@ -9,18 +9,43 @@ class World:
     def __init__(self, args):
         self.args = args
 
-        client = carla.Client(args.host, args.port)
-        client.set_timeout(args.timeout)
-        carla_world = client.get_world()
+        self.client = carla.Client(args.host, args.port)
+        self.client.set_timeout(args.timeout)
 
-        self.client = client
-        self.world = carla_world
+        self.world = self.client.get_world()
+        self.tm = self.client.get_trafficmanager()
+        if (self.world.get_map().name != 'Carla/Maps/Town06_Opt') | (self.args.reload_map):
+        # if (self.world.get_map().name != 'Carla/Maps/Town07_Opt') | (self.args.reload_map):
+            try:
+                self.client.load_world('Town06_Opt')
+                # self.client.load_world('Town07_Opt')
+            except:
+                print("Map: Town06_Opt is not available")
+                print("Have you downloaded it from additional maps?")
+                print("exiting...")
+                exit()
+        self.map = self.world.get_map()
+        self.spectator = self.world.get_spectator()
 
-        self.tm = client.get_trafficmanager()
+        self.settings = self.world.get_settings()
+
+        self.settings.fixed_delta_seconds = 1/50
+        self.settings.synchronous_mode = True # Enables synchronous mode
+        self.settings.substepping = True
+        self.settings.max_substep_delta_time = 0.005
+        self.settings.max_substeps = 16
+
+        self.tm.set_synchronous_mode(True)
+        self.tm.set_random_device_seed(2)
+        
+        self.world.apply_settings(self.settings)
+        # self.world.freeze_all_traffic_lights(True)
+
 
         self.leader_vehicle = None
         self.follower_vehicles = []
-        bp = self.world.get_blueprint_library().filter(args.filter)
+        self.blueprint_lib = self.world.get_blueprint_library()
+        bp = self.blueprint_lib.filter(args.filter)
 
         if len(bp) < 1:
             print("Blueprint ", filter, " was not found")
@@ -28,18 +53,6 @@ class World:
             print("exiting...")
             exit()
         self.bp = bp[0]
-
-        if (self.world.get_map().name != 'Carla/Maps/Town06_Opt') | (self.args.reload_map):
-            try:
-                self.client.load_world('Town06_Opt')
-            except:
-                print("Map: Town06_Opt is not available")
-                print("Have you downloaded it from additional maps?")
-                print("exiting...")
-                exit()
-        self.settings = carla_world.get_settings()
-        self.map = self.world.get_map()
-        self.spectator = self.world.get_spectator()
 
 
     def spawn_platoon(self):
