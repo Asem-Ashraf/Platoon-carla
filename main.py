@@ -15,9 +15,7 @@ def main():
         start = time.time()
         ourmqtt.sendControls(vehicle.get_control(tj.shift_trajectory(trajectory)))
         end = time.time()
-        delay = Ts-(end-start)
-        if(delay>0):
-            time.sleep(delay)
+        print(end-start)
 
 if __name__ == '__main__':
     try:
