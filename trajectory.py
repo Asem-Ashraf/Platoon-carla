@@ -1,15 +1,21 @@
 import fusion as fu
 
-def get_init_trajectory(N):
-    refs = []
-    refs.append(fu.getCurrentStates())
-    for i in range(N):
-        refs.append(fu.getNextPoint())
-    return refs
 
-def shift_trajectory(trajectory, shift=1):
-    for _ in range(shift):
-        trajectory.pop(0)
-        trajectory[0] = fu.getCurrentStates()
-        trajectory.append(fu.getNextPoint())
-    return trajectory
+class ReferenceTrajectory():
+
+    def __init__(self, N):
+        self.refs = []
+        self.ID = fu.getMyPlatoonPosition()
+        for i in range(N * self.ID - 1):
+            self.refs.append(fu.getLeaderStates())
+        self.refs.insert(0, fu.getMyCurrentStates())
+        self.refs.append(fu.getFrontVehicleStates(self.ID))
+        return self, self.refs
+
+    def getUpdatedTrjaectory(self, shift=1):
+        for _ in range(shift):
+            self.refs.pop(0)
+            self.refs[0] = fu.getCurrentStates()
+            self.refs[-1] = fu.getLeaderStates()
+            self.refs.append(fu.getFrontVehicleStates(self.ID))
+        return self.refs

@@ -1,21 +1,23 @@
-import equations as eq
-import control as con
-import trajectory as tj
+from equations import VehicleModel
+from control import MPC
+from trajectory import ReferenceTrajectory
 import ourmqtt
-import time
+# import time
 
-references = []
 N = 8
-Ts = 0.05 # 50ms
+Ts = 0.05
+
 
 def main():
-    vehicle = con.MPC(eq.VehicleModel(),N,Ts)
-    trajectory = tj.get_init_trajectory(N)
+    controller = MPC(VehicleModel(), N, Ts)
+    reftraj, referenceTrajectory = ReferenceTrajectory(N)
     while True:
-        start = time.time()
-        ourmqtt.sendControls(vehicle.get_control(tj.shift_trajectory(trajectory)))
-        end = time.time()
-        print(end-start)
+        # start = time.time()
+        ourmqtt.sendControls(controller.get_control(referenceTrajectory))
+        # end = time.time()
+        # print(end-start)
+        referenceTrajectory = reftraj.getUpdatedTrjaectory()
+
 
 if __name__ == '__main__':
     try:
