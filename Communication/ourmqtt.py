@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.7
 
-import mqtt
+import paho.mqtt as carlaCommunication
 
 
 class MqttClient(object):

@@ -2,7 +2,7 @@
 
 import numpy as np
 import casadi as ca
-from equations import VehicleModel
+from dynamics.equations import VehicleModel
 
 
 class MPC():

@@ -1,10 +1,10 @@
-import fusion as fu
+import Trajectory.Fusion.fusion as fu
 import numpy as np
 
 
 class ReferenceTrajectory():
 
-    def __init__(self, N):
+    def __init__(self):
         # An empty list with the reference trajectory.
         # this is a list of a lists of 6 floats
         # [[f,f,f,f,f,f],[f,f,f,f,f,f],[f,f,f,f,f,f],...]
@@ -36,7 +36,7 @@ class ReferenceTrajectory():
         # safe-distance keeping.
         self.refs.append(fu.getFrontVehicleStates(self.ID))
 
-    def updatedTrjaectory(self, shift=1):
+    def updateTrjaectory(self, shift=1):
         for _ in range(shift):
             # Remove the vehicle's old states as it should have been passed by now.
             self.refs.pop(0)
