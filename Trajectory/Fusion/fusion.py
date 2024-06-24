@@ -1,17 +1,17 @@
 import paho.mqtt as V2VCommunication
 
 
-def getVehicleID():
+def getVehicleID(): # CAN BE HARDCODED
     # uses mqtt
     # called once
     pass
 
-def getN():
+def getN(): # CAN BE HARDCODED
     # uses mqtt
     # called once
     pass
 
-def getTs():
+def getTs(): # CAN BE HARDCODED
     # uses mqtt
     # called once
     pass

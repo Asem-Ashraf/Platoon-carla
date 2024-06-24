@@ -1,6 +1,6 @@
-from control import MPC
-from trajectory import ReferenceTrajectory
-import ourmqtt
+from MPC.control import MPC
+from Trajectory.trajectory import ReferenceTrajectory
+import Communication.ourmqtt as carla
 # import time
 
 
@@ -9,10 +9,10 @@ def main():
     controller = MPC(reftraj.N, reftraj.Ts)
     while True:
         # start = time.time()
-        ourmqtt.sendControls(controller.get_control(reftraj.refs))
+        carla.sendControls(controller.get_control(reftraj.refs))
         # end = time.time()
         # print(end-start)
-        reftraj.getUpdatedTrjaectory()
+        reftraj.updateTrjaectory()
 
 
 if __name__ == '__main__':
