@@ -1,6 +1,12 @@
 #!/usr/bin/env python3.7
 import mqtt
 
+def initComms():
+    pass
+def sendDataGetControls(data):
+    pass
+
+
 class MqttClient(object):
     # @brief Initialize the MQTT client
     # @param broker_address The IP address of the MQTT broker
@@ -67,9 +73,3 @@ def on_message(client, userdata, msg):
     print(f"Received message: {msg.payload.decode()} from topic {msg.topic}")
 
 
-def initialize_communication():
-    pass
-def send_data():
-    pass
-def get_controls():
-    pass
