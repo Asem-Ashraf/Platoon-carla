@@ -1,4 +1,3 @@
-from equations import VehicleModel
 from control import MPC
 from trajectory import ReferenceTrajectory
 import ourmqtt
@@ -7,7 +6,7 @@ import ourmqtt
 
 def main():
     reftraj = ReferenceTrajectory()
-    controller = MPC(VehicleModel(), reftraj.N, reftraj.Ts)
+    controller = MPC(reftraj.N, reftraj.Ts)
     while True:
         # start = time.time()
         ourmqtt.sendControls(controller.get_control(reftraj.refs))

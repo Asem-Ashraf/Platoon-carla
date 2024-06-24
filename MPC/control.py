@@ -2,15 +2,17 @@
 
 import numpy as np
 import casadi as ca
+from equations import VehicleModel
 
 
 class MPC():
 
-    def __init__(self, dynamics, Horizon, T):
+    def __init__(self, Horizon, T):
         self.N = Horizon
 
-        self.n_controls = dynamics.n_controls
-        self.n_states = dynamics.n_states
+        self.dynamics = VehicleModel()
+        self.n_controls = self.dynamics.n_controls
+        self.n_states = self.dynamics.n_states
 
         self.total_states = Horizon
         self.total_controls = self.total_states - 1
@@ -25,7 +27,7 @@ class MPC():
 
         self.UL = ca.SX.sym('ul', self.n_controls)
 
-        obj, g = self.get_costfunction(T, dynamics.changeInStates)
+        obj, g = self.get_costfunction(T, self.dynamics.changeInStates)
 
         self.lbx, self.ubx, self.lbg, self.ubg, opt_params, opt_variables = self.arrange(
         )
