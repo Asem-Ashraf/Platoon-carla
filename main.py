@@ -4,19 +4,16 @@ from trajectory import ReferenceTrajectory
 import ourmqtt
 # import time
 
-N = 8
-Ts = 0.05
-
 
 def main():
-    controller = MPC(VehicleModel(), N, Ts)
-    reftraj, referenceTrajectory = ReferenceTrajectory(N)
+    reftraj = ReferenceTrajectory()
+    controller = MPC(VehicleModel(), reftraj.N, reftraj.Ts)
     while True:
         # start = time.time()
-        ourmqtt.sendControls(controller.get_control(referenceTrajectory))
+        ourmqtt.sendControls(controller.get_control(reftraj.refs))
         # end = time.time()
         # print(end-start)
-        referenceTrajectory = reftraj.getUpdatedTrjaectory()
+        reftraj.getUpdatedTrjaectory()
 
 
 if __name__ == '__main__':

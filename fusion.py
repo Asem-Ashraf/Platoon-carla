@@ -1,7 +1,17 @@
 import ourmqtt
 
 
-def getMyPlatoonPosition():
+def getVehicleID():
+    # uses mqtt
+    # called once
+    pass
+
+def getVehicleN():
+    # uses mqtt
+    # called once
+    pass
+
+def getVehicleTs():
     # uses mqtt
     # called once
     pass
