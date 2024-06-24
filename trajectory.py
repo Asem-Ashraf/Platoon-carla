@@ -16,10 +16,10 @@ class ReferenceTrajectory():
         self.ID = fu.getVehicleID()
 
         # The number of points in a trajectory. This is set in the simulation script so there is a one source of truth.
-        self.N = fu.getVehicleN()
+        self.N = fu.getN()
 
         # The time step. This is set in the simulation script so there is a one source of truth.
-        self.Ts = fu.getVehicleTs()
+        self.Ts = fu.getTs()
 
         # Build the empty list with the received leader states.
         # At least (N * ID) -1 states needs to be received to form a vehicle's
@@ -55,6 +55,8 @@ class ReferenceTrajectory():
 
             # Replace the old front vehicle states element with the latest leader states.
             self.refs[-1] = fu.getLeaderStates()
+
+            # Something that I do that I will explain later.
             differ = self.refs[-2][2] - self.refs[-1][2]
             floorDifference = round(abs(differ / (2 * np.pi)))
             if (differ) > np.pi:

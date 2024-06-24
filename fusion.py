@@ -6,12 +6,12 @@ def getVehicleID():
     # called once
     pass
 
-def getVehicleN():
+def getN():
     # uses mqtt
     # called once
     pass
 
-def getVehicleTs():
+def getTs():
     # uses mqtt
     # called once
     pass
