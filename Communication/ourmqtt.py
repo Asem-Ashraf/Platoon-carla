@@ -1,10 +1,22 @@
 #!/usr/bin/env python3.7
 import mqtt
 
-def initComms():
-    pass
-def sendDataGetControls(data):
-    pass
+
+def sendDataGetControls(client, data):
+    client.publish(publish_topic, data)  # Send data to the broker
+    while True:
+        if client.controlsReceived:
+            client.controlsReceived = False
+            return client.controls  # Return the controls received from the broker
+
+
+# MQTT broker details
+broker_address = "localhost"
+broker_port = 1883
+
+# Define topics
+publish_topic = "carla/states"
+subscribe_topic = "carla/actions"
 
 
 class MqttClient(object):
@@ -53,14 +65,9 @@ class MqttClient(object):
     def disconnect(self):
         self.client.disconnect()
 
-
-# MQTT broker details
-broker_address = "localhost"
-broker_port = 1883
-
-# Define topics
-publish_topic = "carla/states1"
-subscribe_topic = "carla/actions1"
+    # Flags for the communication
+    controlsReceived = False  # flag to indicate if controls have been received
+    controls = None   # store the controls received from the broker
 
 
 # Callback when a message is published
@@ -71,5 +78,15 @@ def on_publish(client, userdata, mid):
 # Callback when a message is received from the subscribed topic
 def on_message(client, userdata, msg):
     print(f"Received message: {msg.payload.decode()} from topic {msg.topic}")
+    if msg.topic == 'carla/actions':
+        client.controlsReceived = True
 
 
+def initComms():
+
+    client = MqttClient(broker_address, broker_port)  # Initialize the MQTT client
+    client.subscribe(subscribe_topic)  # Subscribe to the topic
+    client.set_on_message_callback(on_message) # Set the callback for when a message is received
+    client.set_on_publish_callback(on_publish) # Set the callback for when a message is published
+
+    return client # Return the client object
