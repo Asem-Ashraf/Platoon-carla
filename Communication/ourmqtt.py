@@ -80,6 +80,7 @@ def on_message(client, userdata, msg):
     print(f"Received message: {msg.payload.decode()} from topic {msg.topic}")
     if msg.topic == 'carla/actions':
         client.controlsReceived = True
+        client.controls = msg
 
 
 def initComms():

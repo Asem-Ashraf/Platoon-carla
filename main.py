@@ -13,10 +13,9 @@ def main():
         while True:
             simWorld.applyPlatoonControls(
                 json.loads(
-                    ourmqtt.getDataControls(
+                    ourmqtt.sendDataGetControls(
                         client,
                         json.dumps(simWorld.getPlatoonData()),
-                        ourmqtt.publish_topic,
                     )
                 )
             )
