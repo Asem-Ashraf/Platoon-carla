@@ -3,22 +3,29 @@
 from world import World
 import ourmqtt
 
+
 def main():
     simWorld = World()
     try:
         simWorld.spawnPlatoon(record=True)
-        ourmqtt.initComms()
+        client = ourmqtt.initComms()
         while True:
-            simWorld.applyPlatoonControls(ourmqtt.sendDataGetControls(simWorld.getPlatoonData()))
+            simWorld.applyPlatoonControls(
+                    ourmqtt.sendDataGetControls(
+                        client,
+                        simWorld.getPlatoonData(),
+                    )
+                )
             simWorld.world.tick()
     finally:
         simWorld.destroyPlatoon()
-        print('\n==================\nPlatoon Destroyed.\n==================')
+        print("\n==================\nPlatoon Destroyed.\n==================")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print('\nExit by user using keyboard interrupt. Bye!')
+        print("\nExit by user using keyboard interrupt. Bye!")
     except RuntimeError as e:
         print("\n\n\nUnexpected Runtime error:", e)
