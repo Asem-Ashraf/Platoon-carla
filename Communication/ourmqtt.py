@@ -1,13 +1,6 @@
 #!/usr/bin/env python3.7
 import mqtt
-
-
-def sendDataGetControls(client, data):
-    client.publish(publish_topic, data)  # Send data to the broker
-    while True:
-        if client.controlsReceived:
-            client.controlsReceived = False
-            return client.controls  # Return the controls received from the broker
+import json
 
 
 # MQTT broker details
@@ -91,3 +84,13 @@ def initComms():
     client.set_on_publish_callback(on_publish) # Set the callback for when a message is published
 
     return client # Return the client object
+
+
+def sendDataGetControls(client, data):
+    client.publish(publish_topic, json.dumps(data))  # Send data to the broker in form of a JSON string
+    while True:
+        if client.controlsReceived:
+            client.controlsReceived = False
+            return json.loads(client.controls)  # Return the controls received from the broker as a its former type
+
+

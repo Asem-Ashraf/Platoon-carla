@@ -2,7 +2,6 @@
 
 from world import World
 import ourmqtt
-import json
 
 
 def main():
@@ -12,13 +11,11 @@ def main():
         client = ourmqtt.initComms()
         while True:
             simWorld.applyPlatoonControls(
-                json.loads(
                     ourmqtt.sendDataGetControls(
                         client,
-                        json.dumps(simWorld.getPlatoonData()),
+                        simWorld.getPlatoonData(),
                     )
                 )
-            )
             simWorld.world.tick()
     finally:
         simWorld.destroyPlatoon()
