@@ -5,11 +5,12 @@ import Communication.ourmqtt as carla
 
 
 def main():
+    client = carla.initComms()
     reftraj = ReferenceTrajectory()
     controller = MPC(reftraj.N, reftraj.Ts)
     while True:
         # start = time.time()
-        carla.sendControls(controller.get_control(reftraj.refs))
+        carla.sendControls(client, controller.get_control(reftraj.refs))
         # end = time.time()
         # print(end-start)
         reftraj.updateTrjaectory()

@@ -1,5 +1,6 @@
 import Trajectory.Fusion.fusion as fu
 import numpy as np
+import Communication.ourmqtt as ourmqtt
 
 
 class ReferenceTrajectory():
@@ -35,6 +36,7 @@ class ReferenceTrajectory():
         # calculate the distance between two consecutive vehicles for
         # safe-distance keeping.
         self.refs.append(fu.getFrontVehicleStates(self.ID))
+        ourmqtt.before_flag = True
 
     def updateTrjaectory(self, shift=1):
         for _ in range(shift):
