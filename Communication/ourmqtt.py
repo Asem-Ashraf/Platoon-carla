@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.7
 
 import paho.mqtt as carlaCommunication
+import json
 
 
 class MqttClient(object):
@@ -54,9 +55,26 @@ class MqttClient(object):
 broker_address = "localhost"
 broker_port = 1883
 
+# Define IDs (HARD CODED)
+trgt_id = '03'
+front_id = '02'
+leader_id = '01'
+
+# Define states
+trgt_state = None
+front_state = None
+leader_state = None
+
+trgt_flag = False
+front_flag = False
+leader_flag = False
+
 # Define topics
-publish_topic = "carla/sensors"
-subscribe_topic = "carla/actions"
+publish_topic = "trgt/" + trgt_id + "/actions"
+
+subscribe_topics = {"trgt/" + trgt_id + "/sensors",
+                    "front/" + front_id + "/sensors",
+                    "leader/" + leader_id + "/sensors"}
 
 
 # Callback when a message is published
@@ -67,3 +85,27 @@ def on_publish(client, userdata, mid):
 # Callback when a message is received from the subscribed topic
 def on_message(client, userdata, msg):
     print(f"Received message: {msg.payload.decode()} from topic {msg.topic}")
+    content = msg.payload.decode()
+    if msg.topic == "trgt/" + trgt_id + "/sensors":
+        trgt_state = json.loads(content)
+        trgt_flag = True
+    elif msg.topic == "front/" + front_id + "/sensors":
+        front_state = json.loads(content)
+        front_flag = True
+    elif msg.topic == "leader/" + leader_id + "/sensors":
+        leader_state = json.loads(content)
+        leader_flag = True
+
+
+def initComms():
+    client = MqttClient(broker_address, broker_port)  # Initialize the MQTT client
+    for subscribe_topic in subscribe_topics:
+        client.subscribe(subscribe_topic)  # Subscribe to the topic
+    client.set_on_message_callback(on_message) # Set the callback for when a message is received
+    client.set_on_publish_callback(on_publish) # Set the callback for when a message is published
+
+    return client # Return the client object
+
+
+def sendControls(client, controls):
+    client.publish(publish_topic, json.dumps(controls)) # Publish the controls to the topic
