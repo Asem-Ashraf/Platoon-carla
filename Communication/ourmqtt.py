@@ -68,6 +68,7 @@ leader_state = None
 trgt_flag = False
 front_flag = False
 leader_flag = False
+before_flag = False
 
 # Define topics
 publish_topic = "trgt/" + trgt_id + "/actions"
@@ -95,6 +96,10 @@ def on_message(client, userdata, msg):
     elif msg.topic == "leader/" + leader_id + "/sensors":
         leader_state = json.loads(content)
         leader_flag = True
+
+    if before_flag == False:
+        client.publish(publish_topic, "[0, 0, 0]")
+        before_flag = True
 
 
 def initComms():
