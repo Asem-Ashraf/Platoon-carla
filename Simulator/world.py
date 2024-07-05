@@ -1,10 +1,11 @@
 #!/usr/bin/env python3.7
 
 import carla
-from vehicle import Vehicle
-from arguments import parseArguments
+from Simulator.vehicle import Vehicle
+from Helpers.arguments import parseArguments
 import numpy as np
 import cv2
+import time
 
 # MAP = 'Town07_Opt'
 MAP = 'Town06_Opt'
@@ -22,10 +23,10 @@ class World:
         self.world = self.client.get_world()
         self.tm = self.client.get_trafficmanager()
 
-        if (self.world.get_map().name !=
-                MAP_FULLNAME) | (self.args.reload_map):
+        if (self.world.get_map().name != MAP_FULLNAME) | (self.args.reload_map):
             try:
                 self.client.load_world(MAP)
+                time.sleep(6)
             except:
                 print("Map: Town06_Opt is not available")
                 print("Have you downloaded it from additional maps?")
@@ -60,6 +61,7 @@ class World:
             exit()
         self.bp = bp[0]
         self.records  = None
+        self.camerasActors = []
 
     def spawnPlatoon(self, record=False):
         '''
@@ -77,13 +79,14 @@ class World:
             exit()
         self.follower_vehicles = []
         for _ in range(self.args.count - 1):
-            self.follower_vehicles.append(
+            self.follower_vehicles.insert(0,
                 Vehicle(_ + 1, self.world.spawn_actor(self.bp,
                                                       spawn_points[_])))
 
         self.leader_vehicle = Vehicle(
             0,
             self.world.spawn_actor(self.bp, spawn_points[self.args.count - 1]))
+        self.leader_vehicle.carla_instance.set_autopilot()
         if record:
             self.records = []
             # a camera blueprint. This camera blueprint is used twice to record a video of the platoon from various angels.
@@ -109,23 +112,23 @@ class World:
             frontViewCamActor = self.world.spawn_actor(
                     camera_bp,
                     frontViewTrans,
-                    attach_to=self.leader_vehicle,
+                    attach_to=self.leader_vehicle.carla_instance,
                     # SpringArm attachment for less shaky videos
                     attachment_type=carla.AttachmentType.SpringArm)
-            self.follower_vehicles.append(frontViewCamActor)
+            self.camerasActors.append(frontViewCamActor)
 
             # Attaching the camera to the leader
             topViewCamActor = self.world.spawn_actor(
                     camera_bp,
                     topViewTrans,
-                    attach_to=self.leader_vehicle,
+                    attach_to=self.leader_vehicle.carla_instance,
                     # SpringArm attachment for less shaky videos
                     attachment_type=carla.AttachmentType.SpringArm)
-            self.follower_vehicles.append(topViewCamActor)
+            self.camerasActors.append(topViewCamActor)
 
-            frontViewVideo = cv2.VideoWriter('FrontView.avi', cv2.VideoWriter_fourcc(*'XVID'), cameraFPS, (width, height))
+            frontViewVideo = cv2.VideoWriter('./.vids/FrontView.avi', cv2.VideoWriter_fourcc(*'XVID'), cameraFPS, (width, height))
             self.records.append(frontViewVideo)
-            topViewVideo = cv2.VideoWriter('TopView.avi', cv2.VideoWriter_fourcc(*'XVID'), cameraFPS, (width, height))
+            topViewVideo = cv2.VideoWriter('./.vids/TopView.avi', cv2.VideoWriter_fourcc(*'XVID'), cameraFPS, (width, height))
             self.records.append(topViewVideo)
 
             def addImageToVid(video,image):
@@ -144,7 +147,7 @@ class World:
         # Special point for the spectator above the platoon's spawn location
         loc = spawn_points[self.args.count - 1].location
         loc.z += 50
-        rot = carla.Rotation(pitch=90.0, yaw=90.0, roll=0.0)
+        rot = carla.Rotation(pitch=270.0, yaw=270.0, roll=0.0)
         self.spectator.set_transform(carla.Transform(loc, rot))
 
     def destroyPlatoon(self):
@@ -156,6 +159,8 @@ class World:
                 vid.release()
         for vehicle in self.follower_vehicles:
             vehicle.destroy()
+        for cam in self.camerasActors:
+            cam.destroy()
         self.leader_vehicle.destroy()
 
     def getPlatoonData(self):
@@ -181,7 +186,7 @@ class World:
             print("Spawn the platoon first")
             print("Exiting...")
             exit()
-        for i in range(len(self.follower_vehicles) - 1):
+        for i in range(len(self.follower_vehicles)):
             self.follower_vehicles[i].applyControl(controls[i])
 
     def __myGet_spawn_points(self, n, vehicle_spacing):
@@ -222,7 +227,7 @@ class World:
             X += vehicle_spacing
         return spawn_points
 
-    def __get_vehicle_length(self):
+    def get_vehicle_length(self):
         v = self.world.spawn_actor(self.bp, self.map.get_spawn_points()[190])
         half_length = v.bounding_box.extent.x
         v.destroy()
