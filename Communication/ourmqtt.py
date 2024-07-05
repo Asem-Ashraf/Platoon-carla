@@ -1,11 +1,19 @@
 #!/usr/bin/env python3.7
-import mqtt
 
-def initComms():
-    pass
-def sendDataGetControls(data):
-    pass
+import paho.mqtt.client as mqtt
+import json
+import threading
 
+
+# MQTT broker details
+broker_address = "localhost"
+broker_port = 1883
+
+# Define topics
+publish_topic = "sim/states"
+subscribe_topic = "sim/actions"
+
+ourclient  = None
 
 class MqttClient(object):
     # @brief Initialize the MQTT client
@@ -16,6 +24,10 @@ class MqttClient(object):
         self.client = mqtt.Client()
         self.client.connect(broker_address, broker_port, 60)
         self.client.loop_start()
+        # Flags for the communication
+        self.controlsReceived = threading.Event()  # flag to indicate if controls have been received
+        self.controlsReceived.clear()
+        self.controls = None   # store the controls received from the broker
 
     # @brief Publish a message to a topic
     # @param topic The topic to publish to
@@ -54,14 +66,6 @@ class MqttClient(object):
         self.client.disconnect()
 
 
-# MQTT broker details
-broker_address = "localhost"
-broker_port = 1883
-
-# Define topics
-publish_topic = "carla/states1"
-subscribe_topic = "carla/actions1"
-
 
 # Callback when a message is published
 def on_publish(client, userdata, mid):
@@ -71,5 +75,29 @@ def on_publish(client, userdata, mid):
 # Callback when a message is received from the subscribed topic
 def on_message(client, userdata, msg):
     print(f"Received message: {msg.payload.decode()} from topic {msg.topic}")
+    if msg.topic == 'sim/actions':
+        global ourclient
+        ourclient.controlsReceived.set()
+        ourclient.controls = msg.payload.decode()
+
+
+def initComms():
+    global ourclient
+    ourclient = MqttClient(broker_address, broker_port)  # Initialize the MQTT client
+    ourclient.subscribe(subscribe_topic)  # Subscribe to the topic
+    ourclient.set_on_message_callback(on_message) # Set the callback for when a message is received
+    ourclient.set_on_publish_callback(on_publish) # Set the callback for when a message is published
+
+
+def sendDataGetControls(data):
+    data = dict(zip([l for l in range(len(data))],data))
+    data = json.dumps(data)
+    global ourclient
+    ourclient.publish(publish_topic, data)  # Send data to the broker in form of a JSON string
+    while True:
+        if (ourclient.controlsReceived.wait(5)):
+            data = json.loads(ourclient.controls)  # Return the controls received from the broker as a its former type
+            ourclient.controlsReceived.clear()
+            return data[1:]
 
 
