@@ -1,35 +1,25 @@
-import paho.mqtt as V2VCommunication
+import Communication.ourmqtt as V2V
 
 
-def getVehicleID(): # CAN BE HARDCODED
-    # uses mqtt
-    # called once
-    pass
-
-def getN(): # CAN BE HARDCODED
-    # uses mqtt
-    # called once
-    pass
-
-def getTs(): # CAN BE HARDCODED
-    # uses mqtt
-    # called once
-    pass
-
-
-def getCurrentStates():
-    # uses mqtt
-    # called every timestep
-    pass
+def getMyCurrentStates():
+    while True:
+        if V2V.ourclient.trgt_flag:
+            V2V.ourclient.trgt_flag = False
+            print(V2V.ourclient.trgt_state)
+            return V2V.ourclient.trgt_state
 
 
 def getLeaderStates():
-    # uses mqtt
-    # called every timestep
-    pass
+    while True:
+        if V2V.ourclient.leader_flag:
+            V2V.ourclient.leader_flag = False
+            print(V2V.ourclient.leader_state)
+            return V2V.ourclient.leader_state
 
 
 def getFrontVehicleStates(id):
-    # uses mqtt
-    # called every timestep
-    pass
+    while True:
+        if V2V.ourclient.front_flag:
+            V2V.ourclient.front_flag = False
+            print(V2V.ourclient.front_state)
+            return V2V.ourclient.front_state

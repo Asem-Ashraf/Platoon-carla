@@ -1,15 +1,23 @@
 from MPC.control import MPC
+
 from Trajectory.trajectory import ReferenceTrajectory
-import Communication.ourmqtt as carla
+
+from Helpers.arguments import parseArguments
+
+import Communication.ourmqtt as CARLA
+
 # import time
 
 
 def main():
-    reftraj = ReferenceTrajectory()
-    controller = MPC(reftraj.N, reftraj.Ts)
+    args = parseArguments()
+    ourclient = CARLA.initComms(args.host, args.port, args.id)
+    reftraj = ReferenceTrajectory(ID=args.id, N=args.N)
+    ourclient.before = 4
+    controller = MPC(args.N, args.T)
     while True:
         # start = time.time()
-        carla.sendControls(controller.get_control(reftraj.refs))
+        CARLA.sendControls(controller.get_control(reftraj.refs))
         # end = time.time()
         # print(end-start)
         reftraj.updateTrjaectory()

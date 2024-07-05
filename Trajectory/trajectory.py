@@ -4,7 +4,7 @@ import numpy as np
 
 class ReferenceTrajectory():
 
-    def __init__(self):
+    def __init__(self, N = 100, ID = 1):
         # An empty list with the reference trajectory.
         # this is a list of a lists of 6 floats
         # [[f,f,f,f,f,f],[f,f,f,f,f,f],[f,f,f,f,f,f],...]
@@ -13,13 +13,10 @@ class ReferenceTrajectory():
         # The vehicle ID. 1 is the first follower after the leader and so on.
         # This is used in calculating which n points of the reference
         # trajectory will be given to the MPC controller
-        self.ID = fu.getVehicleID()
+        self.ID = ID
 
         # The number of points in a trajectory. This is set in the simulation script so there is a one source of truth.
-        self.N = fu.getN()
-
-        # The time step. This is set in the simulation script so there is a one source of truth.
-        self.Ts = fu.getTs()
+        self.N = N
 
         # Build the empty list with the received leader states.
         # At least (N * ID) -1 states needs to be received to form a vehicle's
@@ -43,7 +40,7 @@ class ReferenceTrajectory():
 
             # The first element should be the vehicle's current states, so it
             # overwrites an old leader states element that is not needed anymore.
-            self.refs[0] = fu.getCurrentStates()
+            self.refs[0] = fu.getMyCurrentStates()
 
             # Something that I do that I will explain later.
             difference = self.refs[0][2] - self.refs[1][2]

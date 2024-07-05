@@ -48,13 +48,13 @@ class MPC():
         self.solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
     def arrange(self):
-        self.a_max = 60
-        self.delta_max = np.deg2rad(150)
+        self.a_max = 20
+        self.delta_max = np.deg2rad(130)
         upper_bounds_states = {
             'x': np.inf,
             'y': np.inf,
             'psi': np.inf,
-            'vx': 30,  # the limit below which carla max acceleration = 6
+            'vx': 60,  # the limit below which carla max acceleration = 6
             'vy': np.inf,
             'psi_dot': np.inf,
         }
@@ -107,14 +107,14 @@ class MPC():
         Q = np.diag([
             400,  # X
             400,  # Y
-            400,  # psi
+            300,  # psi
             10,  # Vx
             1,  # Vy
             1  # omega
         ])
 
         # Minimize change in acceeration and steering
-        Rchange = np.diag([0.01, 0.1])
+        Rchange = np.diag([0.5, 0.4])
         # Minimize acceeration
         # R = np.diag([0, 0.0])
 
@@ -144,17 +144,15 @@ class MPC():
         for i in range(self.n_controls - 1):
             changeincont = self.U[:, i] - self.U[:, i + 1]
             obj = obj + ca.mtimes(
-                [changeincont.T, 0.1 * Rchange, changeincont])
+                [changeincont.T, Rchange, changeincont])
 
         return obj, g
 
     def get_control(self, references):
         N = self.N
         all_states_init_val = np.array(references[:N]).reshape(-1)
-        parameters = np.concatenate(
-            (self.control_values[:2], all_states_init_val))
-        init_values = np.concatenate(
-            (self.control_values, all_states_init_val))
+        parameters = np.concatenate((self.control_values[:2], all_states_init_val))
+        init_values = np.concatenate((self.control_values[2:],[0.5,0.5], all_states_init_val))
         solution = self.solver(x0=init_values,
                                p=parameters,
                                lbx=self.lbx,
@@ -174,8 +172,14 @@ class MPC():
         x1, y1 = references[0][0], references[0][1]
         x2, y2 = references[-1][0], references[-1][1]
         dis = np.sqrt(((x1 - x2)**2) + ((y1 - y2)**2))
-        SAFE_DISTANCE = 12
+        SAFE_DISTANCE = 11
         if dis < SAFE_DISTANCE:
-            return -1, steer
+            self.control_values[0] = -1*self.a_max
+            return [0, steer, 1]
+        if acc<0:
+            brake = abs(acc)
+            acc=0
+        else:
+            brake = 0
 
-        return acc, steer
+        return [acc, steer, brake]
