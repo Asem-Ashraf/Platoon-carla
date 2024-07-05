@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.7
 
 import numpy as np
+import carla
 
 
 class Vehicle:
@@ -51,15 +52,10 @@ class Vehicle:
             Vy,
             omega
         ]
-        return np.array(next_state)
+        return next_state
 
     def destroy(self):
         self.carla_instance.destroy()
 
     def applyControl(self, control):
-        throttle = control[0]
-        steer = control[1]
-        brake = control[3]
-        self.carla_instance.apply_control(throttle=throttle,
-                                          steer=steer,
-                                          brake=brake)
+        self.carla_instance.apply_control(carla.VehicleControl(throttle=control[0], steer=control[1], brake=control[2]))
