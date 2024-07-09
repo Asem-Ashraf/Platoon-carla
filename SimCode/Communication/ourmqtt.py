@@ -68,17 +68,21 @@ class MqttClient(object):
 
 
 # Callback when a message is published
-def on_publish(client, userdata, mid):
-    print(f"Message {mid} published to topic {publish_topic}")
+# def on_publish(client, userdata, mid):
+    # print(f"Message {mid} published to topic {publish_topic}")
 
 
 # Callback when a message is received from the subscribed topic
 def on_message(client, userdata, msg):
-    print(f"Received message: {msg.payload.decode()} from topic {msg.topic}")
     if msg.topic == 'sim/actions':
         global ourclient
         ourclient.controlsReceived.set()
-        ourclient.controls = msg.payload.decode()
+        ourclient.controls = json.loads(msg.payload.decode())[1:]
+        i = 1
+        for controls in ourclient.controls:
+            print("follower:",i,[f'{val:.3f}' for val in controls])
+        print()
+        # print(f"Received message\nControls: {ourclient.controls}\n")
 
 
 def initComms():
@@ -86,7 +90,7 @@ def initComms():
     ourclient = MqttClient(broker_address, broker_port)  # Initialize the MQTT client
     ourclient.subscribe(subscribe_topic)  # Subscribe to the topic
     ourclient.set_on_message_callback(on_message) # Set the callback for when a message is received
-    ourclient.set_on_publish_callback(on_publish) # Set the callback for when a message is published
+    # ourclient.set_on_publish_callback(on_publish) # Set the callback for when a message is published
 
 
 def sendDataGetControls(data):
@@ -96,8 +100,8 @@ def sendDataGetControls(data):
     ourclient.publish(publish_topic, data)  # Send data to the broker in form of a JSON string
     while True:
         if (ourclient.controlsReceived.wait(5)):
-            data = json.loads(ourclient.controls)  # Return the controls received from the broker as a its former type
+            data = ourclient.controls
             ourclient.controlsReceived.clear()
-            return data[1:]
+            return data
 
 
