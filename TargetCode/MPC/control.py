@@ -48,8 +48,8 @@ class MPC():
         self.solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
     def arrange(self):
-        self.a_max = 20
-        self.delta_max = np.deg2rad(130)
+        self.a_max = 60
+        self.delta_max = np.deg2rad(70)
         upper_bounds_states = {
             'x': np.inf,
             'y': np.inf,
@@ -71,8 +71,7 @@ class MPC():
             'delta': self.delta_max,
         }
         lower_bounds_controls = {
-            'acc': -self.
-            a_max,  # This negative value is not for going backward (braking).
+            'acc': -self.a_max,  # This negative value is not for going backward (braking).
             'delta': -self.delta_max,
         }
         lbs = list(lower_bounds_states.values())
@@ -105,18 +104,18 @@ class MPC():
 
         # Minimize
         Q = np.diag([
-            400,  # X
-            400,  # Y
-            300,  # psi
-            10,  # Vx
+            50,  # X
+            50,  # Y
+            100,  # psi
+            1,  # Vx
             1,  # Vy
             1  # omega
         ])
 
         # Minimize change in acceeration and steering
-        Rchange = np.diag([0.5, 0.4])
+        Rchange = np.diag([0, 0.6])
         # Minimize acceeration
-        # R = np.diag([0, 0.0])
+        # R = np.diag([0, 0, 0,0,10,10])
 
         g.append(self.X[:, 0] - self.X_ref[:, 0])
         for i in range(self.n_states - 1):
@@ -134,7 +133,7 @@ class MPC():
 
         # minimize controls for more fuel efficiency(if the acc was reduced)
         # for i in range(self.n_controls):
-        #     cont = self.U[:, i]
+        #     cont = self.X[:, i]
         #     obj = obj + ca.mtimes([cont.T, R, cont])
 
         # given the control that was applied last time, minimize the difference between the last control and the first control
@@ -144,7 +143,7 @@ class MPC():
         for i in range(self.n_controls - 1):
             changeincont = self.U[:, i] - self.U[:, i + 1]
             obj = obj + ca.mtimes(
-                [changeincont.T, Rchange, changeincont])
+                [changeincont.T, 0.1 * Rchange, changeincont])
 
         return obj, g
 
@@ -152,7 +151,7 @@ class MPC():
         N = self.N
         all_states_init_val = np.array(references[:N]).reshape(-1)
         parameters = np.concatenate((self.control_values[:2], all_states_init_val))
-        init_values = np.concatenate((self.control_values[2:],[0.5,0.5], all_states_init_val))
+        init_values = np.concatenate((self.control_values, all_states_init_val))
         solution = self.solver(x0=init_values,
                                p=parameters,
                                lbx=self.lbx,
@@ -161,20 +160,18 @@ class MPC():
                                ubg=self.ubg)
 
         estimated_values = solution['x'].full()
-        self.control_values = estimated_values[:self.n_controls *
-                                               (self.total_controls)].reshape(
-                                                   -1)
-        self.states_values = estimated_values[(self.total_controls) *
-                                              self.n_controls:].reshape(-1)
+        self.control_values = estimated_values[:self.n_controls * (self.total_controls)].reshape( -1)
+        self.states_values = estimated_values[(self.total_controls) * self.n_controls:].reshape(-1)
         acc = estimated_values[0][0] / self.a_max
         steer = estimated_values[1][0] / self.delta_max
 
         x1, y1 = references[0][0], references[0][1]
         x2, y2 = references[-1][0], references[-1][1]
         dis = np.sqrt(((x1 - x2)**2) + ((y1 - y2)**2))
-        SAFE_DISTANCE = 11
-        if dis < SAFE_DISTANCE:
-            self.control_values[0] = -1*self.a_max
+        SAFE_DISTANCE = references[0][3]*1.1
+        # SAFE_DISTANCE = 11
+        if (dis < SAFE_DISTANCE) | (dis < 12):
+        # if (dis < SAFE_DISTANCE):
             return [0, steer, 1]
         if acc<0:
             brake = abs(acc)

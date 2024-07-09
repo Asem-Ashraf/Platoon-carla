@@ -28,6 +28,12 @@ class ReferenceTrajectory():
         # vehicle states.
         self.refs.insert(0, fu.getMyCurrentStates())
 
+        # for i in range(1,self.N):
+        #     self.refs[i][3] = self.refs[i+(self.N*(self.ID-1))][3]
+
+        if self.ID>1:
+            self.refs[1:self.N][3] = self.refs[-N+1:][3]
+
         # The last element is not used by the MPC controller, but it is used to
         # calculate the distance between two consecutive vehicles for
         # safe-distance keeping.
@@ -60,6 +66,9 @@ class ReferenceTrajectory():
                 self.refs[-1][2] += 2 * np.pi * floorDifference
             elif (differ) < -np.pi:
                 self.refs[-1][2] -= 2 * np.pi * floorDifference
+
+            if self.ID > 1:
+                self.refs[self.N-1][3] = self.refs[-1][3]
 
             # Then, append the front vehicle states to the end.
             self.refs.append(fu.getFrontVehicleStates(self.ID))
